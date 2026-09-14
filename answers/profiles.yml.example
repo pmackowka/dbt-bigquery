@@ -1,0 +1,33 @@
+# Szablon połączenia z BigQuery.
+# Skopiuj do answers/profiles.yml (plik jest w .gitignore) albo do ~/.dbt/profiles.yml.
+# Wymagane zmienne środowiskowe:
+#   export BIGQUERY_PROJECT="twoj-projekt-gcp"
+#   export BIGQUERY_KEYFILE="/sciezka/do/service-account.json"
+# Alternatywa bez klucza: method: oauth + `gcloud auth application-default login`.
+answers: # musi pasować do `profile:` w dbt_project.yml
+  target: dev # domyślny target dla wszystkich poleceń dbt
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      keyfile: "{{ env_var('BIGQUERY_KEYFILE') }}"
+      database: "{{ env_var('BIGQUERY_PROJECT') }}"
+      schema: dbt_dev_answers # schema, w której dbt tworzy tabele
+      threads: 64 # maksymalna liczba równoległych zapytań
+      timeout_seconds: 300
+      location: US
+      priority: interactive # "batch" albo "interactive"
+      maximum_bytes_billed: 1000000000 # limit 1 GB na zapytanie
+
+    # przykład drugiego targetu: dbt build --target prod
+    prod:
+      type: bigquery
+      method: service-account
+      keyfile: "{{ env_var('BIGQUERY_KEYFILE') }}"
+      database: "{{ env_var('BIGQUERY_PROJECT') }}"
+      schema: dbt_prod_answers
+      threads: 64
+      timeout_seconds: 300
+      location: US
+      priority: interactive
+      maximum_bytes_billed: 1000000000
