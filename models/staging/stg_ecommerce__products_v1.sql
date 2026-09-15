@@ -1,3 +1,4 @@
+{# Staging: produkty, wersja 1 (bez kolumny brand) - patrz models/staging/stg_ecommerce__products.yml -> versions #}
 WITH source AS (
 	SELECT *
 

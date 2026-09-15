@@ -1,4 +1,9 @@
 {#
+	Makro typu 2 (hook) - rejestrowane w dbt_project.yml jako on-run-start, więc uruchamia się
+	na początku KAŻDEGO dbt run/seed/snapshot i tworzy (CREATE OR REPLACE) UDF get_brand_name()
+	w schemacie targetu. Używane w models/staging/stg_ecommerce__events.sql do wyciągnięcia
+	nazwy marki z URL-a (uri -> web_link).
+
 	Ta funkcja tworzy funkcję w docelowym schemacie, która może być użyta do wyodrębnienia nazwy marki
 	z kolumny linku w tabeli zdarzeń.
 

@@ -1,3 +1,4 @@
+{# Intermediate: łączy stg_ecommerce__order_items z produktami (v2), liczy item_profit/item_discount dla dim_orders #}
 WITH products AS (
 	SELECT
 		product_id,

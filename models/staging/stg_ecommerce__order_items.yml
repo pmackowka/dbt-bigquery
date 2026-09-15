@@ -1,3 +1,7 @@
+# Dokumentacja + testy + kontrakt dla stg_ecommerce__order_items. Kontrakt (contract: enforced)
+# wymusza strukturę (data_type, constraints) PRZED zbudowaniem modelu - jeśli SQL nie zgadza się
+# z deklaracją (brakująca kolumna, zły typ), build pada od razu. Testy w tests: (not_null, unique,
+# relationships) sprawdzają dane PO zbudowaniu - to dwa różne, uzupełniające się mechanizmy.
 version: 2
 
 models:

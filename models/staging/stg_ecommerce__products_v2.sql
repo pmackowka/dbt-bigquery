@@ -1,3 +1,4 @@
+{# Staging: produkty, wersja 2 (dokłada brand) - latest_version, aliasowana na stg_ecommerce__products w bazie #}
 WITH source AS (
 	SELECT *
 

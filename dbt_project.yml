@@ -1,3 +1,7 @@
+# Główny plik konfiguracyjny projektu dbt: nazwa, profil (musi się zgadzać z kluczem najwyższego
+# poziomu w profiles.yml), ścieżki folderów, domyślna materializacja i ważność testów, hooki
+# on-run-start/on-run-end. dbt czyta ten plik jako pierwszy przy każdym uruchomieniu.
+
 # Nazwa projektu dbt - powinna zawierać tylko małe litery i podkreślenia
 # Powinna odzwierciedlać organizację lub przeznaczenie projektu
 name: 'dbt_bigquery_course'  # nie 'dbt_bigquery' - ta nazwa jest zastrzeżona przez wewnętrzny pakiet makr adaptera dbt-bigquery

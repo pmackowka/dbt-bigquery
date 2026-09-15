@@ -1,3 +1,4 @@
+{# Ephemeral: data pierwszego zamówienia per user_id, wklejane jako CTE do dim_orders (liczy days_since_first_order) #}
 {{
 	config(materialized='ephemeral')
 }}

@@ -1,3 +1,10 @@
+{#
+	Makro typu 3 (operacja) - nie jest wywoływane z żadnego modelu, tylko ręcznie z terminala:
+	dbt run-operation more_example_jinja --profiles-dir .
+	Przykład introspekcji: adapter.get_columns_in_relation() czyta metadane kolumn zbudowanego
+	modelu dim_orders, dbt_utils.get_column_values() odpytuje bazę o realne wartości w kolumnie
+	order_status. Wynik trafia tylko do logu (log(..., info=True)), nic nie materializuje.
+#}
 {% macro more_example_jinja() %}
   {% set columns = adapter.get_columns_in_relation(ref('dim_orders')) %}
 

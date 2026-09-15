@@ -1,3 +1,4 @@
+{# Staging: pozycje zamówień (thelook_ecommerce.order_items), źródło dla int_ecommerce__order_items_products #}
 WITH source AS (
 	SELECT *
 

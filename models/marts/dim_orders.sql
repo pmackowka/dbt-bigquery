@@ -1,3 +1,4 @@
+{# Mart: finalna tabela zamówień - agreguje int_ecommerce__order_items_products i int_ecommerce__first_order_created #}
 {%- set departments = dbt_utils.get_column_values(table=ref('int_ecommerce__order_items_products'), column='product_department') -%}
 
 WITH

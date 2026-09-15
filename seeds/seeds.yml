@@ -1,3 +1,7 @@
+# Dokumentacja + testy + typy kolumn dla seeda seed_distribution_centers_new.csv. Seed to plik CSV
+# ładowany do bazy WYŁĄCZNIE przez `dbt seed` (dbt run go pomija), ale testowany normalnie przez
+# `dbt test` jak każdy inny model. column_types w config wymusza typy w BigQuery zamiast polegać
+# na automatycznym wykryciu z zawartości CSV.
 version: 2
 
 seeds:

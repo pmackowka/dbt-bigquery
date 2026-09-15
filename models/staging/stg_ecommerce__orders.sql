@@ -1,3 +1,4 @@
+{# Staging: zamówienia (thelook_ecommerce.orders), baza dla dim_orders i int_ecommerce__first_order_created #}
 WITH source AS (
 	SELECT *
 

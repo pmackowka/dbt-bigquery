@@ -1,3 +1,11 @@
+{#
+	Makro typu 3 (operacja) - własna kopia/nadpisanie makra generate_base_model z pakietu
+	dbt-labs/codegen. Generuje gotowy szkielet SQL modelu staging (SELECT * z source + rename
+	id -> <tabela_w_liczbie_pojedynczej>_id) na podstawie metadanych kolumn źródła.
+	Wywołanie: dbt run-operation generate_base_model --args '{"source_name": "thelook_ecommerce", "table_name": "orders"}'
+	Wynik trafia do logu (log(..., info=True)) - trzeba go ręcznie wkleić do nowego pliku .sql,
+	makro niczego samo nie zapisuje na dysk.
+#}
 {% macro generate_base_model(source_name, table_name, case_sensitive_cols=False, materialized=None) %}
 
 {%- set source_relation = source(source_name, table_name) -%}

@@ -1,3 +1,4 @@
+{# Staging: eventy użytkowników (thelook_ecommerce.events), model incremental partycjonowany dziennie po created_at #}
 {{
 	config(
 		materialized='incremental',

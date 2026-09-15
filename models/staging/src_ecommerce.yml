@@ -1,3 +1,7 @@
+# Definicja source() - surowych tabel źródłowych (bigquery-public-data.thelook_ecommerce), na
+# których bazują wszystkie modele stg_ecommerce__*. source() (w odróżnieniu od ref()) odwołuje się
+# do tabeli spoza projektu dbt; freshness/loaded_at_field w config pozwalają sprawdzić przez
+# `dbt source freshness`, czy dane w events nie są przestarzałe.
 version: 2
 
 sources:

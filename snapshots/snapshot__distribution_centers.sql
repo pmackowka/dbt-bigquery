@@ -1,3 +1,4 @@
+{# Snapshot SCD2: śledzi zmiany distribution_centers w czasie (strategia check na name/latitude/longitude) #}
 {% snapshot snapshot__distribution_centers %}
 
 {{

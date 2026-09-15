@@ -1,3 +1,8 @@
+# Dokumentacja + testy + governance dla dim_orders (jedyny model w marts/). Grupa "sales" +
+# access: public to mechanizm kontroli, KTÓRE modele mogą ref()-ować dim_orders (private = tylko
+# modele w tej samej grupie, protected = grupa/projekt, public = dowolny projekt dbt) - nie ma
+# wpływu na uprawnienia w samej bazie danych. +group: sales jest też ustawiony globalnie na cały
+# folder marts/ w dbt_project.yml; tu w config: powtórzony jawnie dla czytelności.
 version: 2
 
 groups:

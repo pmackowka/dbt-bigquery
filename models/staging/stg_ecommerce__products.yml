@@ -1,3 +1,8 @@
+# Dokumentacja + testy + wersjonowanie modelu stg_ecommerce__products. Sekcja versions: pozwala
+# trzymać w projekcie dwie wersje tej samej tabeli jednocześnie (v1 bez kolumny brand, v2 z nią) -
+# przydatne przy zmianie łamiącej kompatybilność. Fizyczne pliki: stg_ecommerce__products_v1.sql
+# i _v2.sql; alias: stg_ecommerce__products w v2 zachowuje niewersjonowaną nazwę tabeli w bazie,
+# żeby narzędzia BI nie musiały znać numeru wersji.
 version: 2  # Wersja schematu pliku YAML, używana przez dbt do walidacji formatu
 
 models:
