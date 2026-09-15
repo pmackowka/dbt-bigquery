@@ -1,0 +1,10 @@
+packages:
+  - package: dbt-labs/dbt_utils
+    version: 1.4.1
+
+  # calogica/dbt_expectations jest zarchiwizowany - metaplane/dbt_expectations to aktywny fork
+  - package: metaplane/dbt_expectations
+    version: 0.10.10
+
+  - package: dbt-labs/codegen
+    version: 0.14.1

@@ -1,0 +1,54 @@
+# Nazwa projektu dbt - powinna zawierać tylko małe litery i podkreślenia
+# Powinna odzwierciedlać organizację lub przeznaczenie projektu
+name: 'dbt_bigquery_course'  # nie 'dbt_bigquery' - ta nazwa jest zastrzeżona przez wewnętrzny pakiet makr adaptera dbt-bigquery
+
+# Wersja projektu - pozwala na zarządzanie wersjami konfiguracji
+version: '1.0.0'
+
+config-version: 2
+
+# Określa, który profil dbt zostanie użyty do połączenia z bazą danych
+profile: 'dbt_bigquery_course'
+
+# Ścieżki do różnych typów plików w projekcie dbt
+model-paths: ["models"]         # Katalog, w którym znajdują się modele SQL
+analysis-paths: ["analyses"]     # Katalog na analizy ad hoc w SQL
+test-paths: ["tests"]            # Katalog na testy dbt
+seed-paths: ["seeds"]            # Katalog na pliki CSV (seed data)
+macro-paths: ["macros"]          # Katalog na makra dbt
+snapshot-paths: ["snapshots"]    # Katalog na snapshoty historyczne
+
+# Katalog, w którym dbt zapisuje skompilowane pliki SQL i wyniki
+target-path: "target"
+
+# Określa katalogi, które zostaną usunięte przez `dbt clean`
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Na początku każdego procesu dbt zostanie uruchomione makro get_brand_name()
+# (zdefiniowane w macros/macro_get_brand_name.sql). Tworzy ono funkcję użytkownika (UDF)
+# w schemacie w BigQuery.
+on-run-start:
+  - "{{ get_brand_name() }}"  # Automatyczne uruchomienie makra na starcie
+
+# Konfiguracja domyślnego zachowania dla modeli w projekcie
+models:
+  dbt_bigquery_course:
+    +materialized: table  # Domyślna materializacja to tabela (table)
+    +persist_docs:        # Zapisuje opisy kolumn w bazie danych (np. BigQuery)
+      relation: true
+      columns: true
+    +hours_to_expiration: |
+      {% if target.name == 'dev' %} 1
+      {% else %} 168
+      {% endif %}
+
+    marts:
+      +group: sales  # Przypisanie modeli w marts do grupy "sales" (patrz models/marts/dim_orders.yml)
+
+
+# Konfiguracja domyślna dla testów w projekcie
+tests:
+  dbt_bigquery_course:
+    +severity: warn  # Wszystkie testy domyślnie ustawione jako ostrzeżenie (warn)
