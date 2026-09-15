@@ -27,19 +27,78 @@ analyses/         # zapytania eksploracyjne (dbt compile, bez materializacji)
 
 ## Setup
 
+Autoryzacja przez **konto serwisowe** (service account) — nie przez lokalny OAuth (`gcloud auth application-default login`). OAuth loguje CIEBIE i działa tylko na maszynie, na której go odpaliłeś; konto serwisowe to tożsamość samego projektu, przenośna (CI/CD, inny laptop, kontener) i taka, której uprawnienia widać jawnie w IAM, a nie w czyjejś sesji logowania.
+
+### 1. GCP — projekt i konto serwisowe
+
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+# Nowy projekt GCP (pomiń, jeśli używasz istniejącego)
+gcloud projects create TWOJ_PROJECT_ID --name="dbt BigQuery course"
+gcloud config set project TWOJ_PROJECT_ID
 
-cp profiles.yml.example profiles.yml   # profiles.yml jest w .gitignore
-export BIGQUERY_PROJECT="twoj-projekt-gcp"
-export BIGQUERY_KEYFILE="/sciezka/do/service-account.json"
+# BigQuery API musi być włączone w projekcie, zanim dbt się z nim połączy
+gcloud services enable bigquery.googleapis.com
 
-dbt deps --profiles-dir .
-dbt build --profiles-dir .
+# Konto serwisowe dedykowane pod dbt (nie Twoje osobiste konto Google)
+gcloud iam service-accounts create dbt-bigquery-course \
+  --display-name="dbt BigQuery course"
+
+# Rola dataEditor: tworzenie/nadpisywanie/kasowanie tabel i widoków w datasetach projektu
+# (dbt run/build robi to non-stop — bez tej roli każdy build padnie na permission denied)
+gcloud projects add-iam-policy-binding TWOJ_PROJECT_ID \
+  --member="serviceAccount:dbt-bigquery-course@TWOJ_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/bigquery.dataEditor"
+
+# Rola jobUser: uruchamianie zapytań (query jobs) rozliczanych na ten projekt
+# (dataEditor sam w sobie NIE pozwala odpalać zapytań - to świadomie rozdzielone uprawnienie)
+gcloud projects add-iam-policy-binding TWOJ_PROJECT_ID \
+  --member="serviceAccount:dbt-bigquery-course@TWOJ_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/bigquery.jobUser"
+
+# Klucz JSON - POZA folderem tego repo (np. ~/.gcp/), żeby żaden przyszły `git add -A`
+# nie mógł go złapać niezależnie od .gitignore
+mkdir -p ~/.gcp
+gcloud iam service-accounts keys create ~/.gcp/dbt-bigquery-course.json \
+  --iam-account=dbt-bigquery-course@TWOJ_PROJECT_ID.iam.gserviceaccount.com
 ```
 
-## Dokumentacja notatek
+Dataset źródłowy `bigquery-public-data.thelook_ecommerce` jest publiczny — Google nadaje odczyt każdej uwierzytelnionej tożsamości GCP, więc powyższe role nic tam nie zmieniają i nic dodatkowego nie trzeba nadawać. Zapytania są tanie (mały dataset, w granicach darmowego 1 TB/miesiąc), ale rozliczane na `TWOJ_PROJECT_ID`, nie na `bigquery-public-data`.
 
-Notatki merytoryczne z kursu (setup, warstwy modeli, testy, kontrakty, snapshoty, Jinja/makra) są w osobnym repo wiedzy — nie w tym repo kodu.
+### 2. Repo i środowisko Python
+
+```bash
+git clone https://github.com/pmackowka/dbt-bigquery.git
+cd dbt-bigquery
+
+python3 -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt  # instaluje dbt-bigquery==1.12.0 (dociąga zgodny dbt-core)
+```
+
+### 3. Konfiguracja połączenia
+
+```bash
+cp profiles.yml.example profiles.yml   # profiles.yml jest w .gitignore - nigdy go nie commituj
+export BIGQUERY_PROJECT="TWOJ_PROJECT_ID"
+export BIGQUERY_KEYFILE="$HOME/.gcp/dbt-bigquery-course.json"
+
+dbt deps --profiles-dir .    # instaluje pakiety z packages.yml do dbt_packages/
+dbt debug --profiles-dir .   # weryfikuje połączenie PRZED pierwszym run - najczęstszy błąd
+                              # na tym etapie to literówka w BIGQUERY_PROJECT albo zła ścieżka klucza
+```
+
+### 4. Pierwszy build
+
+```bash
+dbt seed --profiles-dir .       # ładuje seeds/seed_distribution_centers_new.csv (dbt run tego NIE robi)
+dbt snapshot --profiles-dir .   # pierwszy przebieg snapshotu SCD2 - zakłada tabelę historii w BigQuery
+dbt build --profiles-dir .      # seed + snapshot + run + test w jednym poleceniu, kolejność wg DAG-a
+```
+
+Kolejność ma znaczenie: `seed` przed `build`, bo `snapshots/snapshot__distribution_centers.sql` czyta z `source()`, nie z seeda — ale sam seed też trzeba załadować raz, zanim cokolwiek innego po niego sięgnie. `dbt build` przy kolejnych uruchomieniach wystarcza sam.
+
+## Notatki (prywatne, tylko dla mnie)
+
+Pełne notatki merytoryczne z kursu (setup, warstwy modeli, testy, kontrakty, snapshoty, Jinja/makra) są w moim prywatnym repo wiedzy: [dbt-Kompletny-Przewodnik-BigQuery.md](https://github.com/pmackowka/knowledge-base/blob/main/wiki/Software/dbt/dbt-Kompletny-Przewodnik-BigQuery.md).
+
+Ten link **działa tylko na moim koncie GitHub** — repo jest prywatne i takie zostanie. Dla każdego innego zwraca 404, to celowe, nie błąd.

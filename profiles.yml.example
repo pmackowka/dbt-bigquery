@@ -1,8 +1,15 @@
 # Szablon połączenia z BigQuery.
 # Skopiuj do profiles.yml (plik jest w .gitignore) albo do ~/.dbt/profiles.yml.
+#
+# method: service-account (nie oauth) - świadomy wybór, nie domyślne ustawienie kursu.
+# OAuth (gcloud auth application-default login) loguje osobę i działa tylko na maszynie,
+# na której się go odpalił. Konto serwisowe to tożsamość samego projektu: uprawnienia
+# widać jawnie w IAM (patrz README.md -> Setup -> 1. GCP), a klucz działa wszędzie
+# (CI/CD, inny laptop, kontener) bez ponownego logowania.
+#
 # Wymagane zmienne środowiskowe:
 #   export BIGQUERY_PROJECT="twoj-projekt-gcp"
-#   export BIGQUERY_KEYFILE="/sciezka/do/service-account.json"
+#   export BIGQUERY_KEYFILE="/sciezka/do/klucza/service-account.json"  # POZA folderem repo
 dbt_bigquery_course: # musi pasować do `profile:` w dbt_project.yml
   target: dev
   outputs:
