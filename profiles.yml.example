@@ -10,7 +10,7 @@
 # Wymagane zmienne środowiskowe:
 #   export BIGQUERY_PROJECT="twoj-projekt-gcp"
 #   export BIGQUERY_KEYFILE="/sciezka/do/klucza/service-account.json"  # POZA folderem repo
-dbt_bigquery_course: # musi pasować do `profile:` w dbt_project.yml
+ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
   target: dev
   outputs:
     dev:

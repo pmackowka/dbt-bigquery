@@ -27,11 +27,15 @@ WITH source AS (
 SELECT
 {%- for column in column_names %}
 	{%- if column == 'id' -%}
-	{# Takes the table name, strips the last letter to make it singular (e.g orders --> order)
-	   and appends "_id" to create a primary key that matches the name of foreign keys #}
+	{# Kolumnę 'id' zmienia na <nazwa_tabeli_w_liczbie_pojedynczej>_id (np. orders -> order_id).
+	   Po co: w tabelach, do których orders się odwołuje (order_items.order_id), klucz obcy już
+	   nazywa się order_id, nie id - to ujednolica nazewnictwo klucza głównego z nazwą, pod jaką
+	   występuje jako klucz obcy gdzie indziej, więc join'y są czytelniejsze (order_id = order_id,
+	   nie id = order_id). #}
 	id AS {{ table_name[:-1] }}_id{{"," if not loop.last}}
 	{%- else -%}
-	{# Otherwise, just takes the column name #}
+	{# Każdą inną kolumnę (nie 'id') przepisuje bez zmian - brak dobrego, ogólnego wzorca
+	   przemianowania dla kolumn innych niż klucz główny. #}
 	{{ column }}{{"," if not loop.last}}
 	{%- endif -%}
 {%- endfor %}

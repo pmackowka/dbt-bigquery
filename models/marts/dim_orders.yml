@@ -24,18 +24,25 @@ models:
       # - private: tylko inne modele z tej samej grupy (czyli "sales") mogą używać tego modelu przez ref()
       # - protected: modele z tej samej grupy lub projektu mogą go używać (domyślny poziom)
       # - public: każdy model (nawet z innego projektu dbt) może użyć ref()
+      #
+      # Dlaczego akurat public dla TEGO modelu: dim_orders to ostatnia warstwa (mart) - punkt
+      # końcowy, po który mają sięgać narzędzia BI i inne zespoły/projekty dbt (dbt Mesh). Modele
+      # warstw wcześniejszych (staging, intermediate) świadomie zostałyby private/protected, żeby
+      # nikt z zewnątrz nie budował logiki na tabelach pośrednich, które mogą się zmienić bez
+      # ostrzeżenia - tylko finalny mart ma być stabilnym, publicznym kontraktem.
       access: public
 
     columns:
 
-    # Columns from stg_ecommerce__orders
-    # We don't test these columns, other than the primary key,
-    # as we've already tested them in the staging model. But feel free
-    # to add your own tests here!
+    # Kolumny ze stg_ecommerce__orders - nie testujemy ich tu ponownie (poza kluczem głównym),
+    # bo są już przetestowane w modelu staging. Po co ten podział: testowanie w jednym miejscu
+    # (warstwa staging) unika duplikowania tych samych testów w każdym kolejnym modelu, który
+    # z danej kolumny korzysta - dim_orders ufa, że stg_ecommerce__orders już zweryfikowało dane.
       - name: order_id
         tests:
-          # Generic test that we define in tests/generic/test_primary_key.sql
-          # Takes arguments for model & column_name, both of which are automatically passed to it
+          # Generic test zdefiniowany w tests/generic/test_primary_key.sql - model i nazwa
+          # kolumny są przekazywane automatycznie przez dbt (patrz definicja testu), nie trzeba
+          # ich tu jawnie podawać.
           - primary_key:
               config:
                 severity: error
@@ -65,8 +72,10 @@ models:
         description: "Number of items in the order"
 
 
-    # Columns from int_ecommerce__order_items_product
-    # We should test these columns as they're new
+    # Kolumny z int_ecommerce__order_items_products (agregaty policzone w TYM modelu, nie
+    # przepisane 1:1 z warstwy staging) - w odróżnieniu od kolumn wyżej, te TRZEBA przetestować
+    # tutaj: to nowa logika (SUM, agregacja po department), której nie sprawdza żaden wcześniejszy
+    # model - błąd w liczeniu sumy ujawniłby się dopiero tu, nie w staging.
       - name: total_sale_price
         description: "Sum of item_sale_price for the whole order"
         tests:

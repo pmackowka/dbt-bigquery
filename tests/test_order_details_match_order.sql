@@ -1,14 +1,19 @@
-{# This config is optional, as we've already set the default severity to warn #}
+{# Jawny severity='warn', mimo że to i tak domyślne ustawienie projektu (dbt_project.yml -
+   tests: +severity: warn) - celowa nadmiarowość: ktoś czytający TYLKO ten plik (bez otwierania
+   dbt_project.yml) od razu widzi, że niezgodność ma tylko ostrzegać, nie blokować builda. #}
 {{ config(severity='warn') }}
 
 /*
-    Checks that, for any order, that the number of line items in the order_items table
-	matches the num_items_ordered column in the orders table.
+	Sprawdza, czy dla każdego zamówienia liczba pozycji w tabeli order_items
+	zgadza się z kolumną num_items_ordered w tabeli orders.
 
-    Returns all of the rows where we don't get a match
+	Zwraca wszystkie wiersze, w których liczba się nie zgadza (albo w ogóle brak dopasowania
+	po jednej ze stron - FULL OUTER JOIN niżej wyłapuje też takie przypadki, nie tylko
+	rozjazd liczb).
 
-    We could run multiple checks here (e.g. check only 1 user_id per order, or that the shipped_at timestamps
-	are all the same for a given order), but this is just an example of a custom test.
+	Można by dorzucić tu więcej kontroli (np. że każde zamówienie ma dokładnie 1 user_id, albo
+	że znaczniki czasu shipped_at są spójne w ramach jednego zamówienia), ale to tylko przykład
+	pojedynczego testu (singular test) - nie ma ambicji być kompletnym zestawem kontroli.
 */
 
 WITH order_details AS (
@@ -27,8 +32,8 @@ SELECT
 FROM {{ ref('stg_ecommerce__orders') }} AS o
 FULL OUTER JOIN order_details AS od USING(order_id)
 WHERE
-    -- All orders should have at least 1 item, and every item should tie to an order
+    -- Każde zamówienie powinno mieć min. 1 pozycję, a każda pozycja - pasować do zamówienia
     o.order_id IS NULL
     OR od.order_id IS NULL
-    -- Number of items doesn't match
+    -- Liczba pozycji się nie zgadza
     OR o.num_items_ordered != od.num_of_items_in_order

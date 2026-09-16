@@ -4,7 +4,7 @@
 
 # Nazwa projektu dbt - powinna zawierać tylko małe litery i podkreślenia
 # Powinna odzwierciedlać organizację lub przeznaczenie projektu
-name: 'dbt_bigquery_course'  # nie 'dbt_bigquery' - ta nazwa jest zastrzeżona przez wewnętrzny pakiet makr adaptera dbt-bigquery
+name: 'ecommerce_analytics'  # nie 'dbt_bigquery' - ta nazwa jest zastrzeżona przez wewnętrzny pakiet makr adaptera dbt-bigquery
 
 # Wersja projektu - pozwala na zarządzanie wersjami konfiguracji
 version: '1.0.0'
@@ -12,7 +12,7 @@ version: '1.0.0'
 config-version: 2
 
 # Określa, który profil dbt zostanie użyty do połączenia z bazą danych
-profile: 'dbt_bigquery_course'
+profile: 'ecommerce_analytics'
 
 # Ścieżki do różnych typów plików w projekcie dbt
 model-paths: ["models"]         # Katalog, w którym znajdują się modele SQL
@@ -38,21 +38,41 @@ on-run-start:
 
 # Konfiguracja domyślnego zachowania dla modeli w projekcie
 models:
-  dbt_bigquery_course:
-    +materialized: table  # Domyślna materializacja to tabela (table)
-    +persist_docs:        # Zapisuje opisy kolumn w bazie danych (np. BigQuery)
+  ecommerce_analytics:
+    # table, nie view: dataset jest mały (thelook_ecommerce), więc koszt przeliczenia całej tabeli
+    # przy każdym dbt run jest pomijalny, a odczyt z gotowej tabeli jest szybszy niż z widoku
+    # przeliczanego za każdym zapytaniem - view/incremental włączane punktowo tam, gdzie się opłaca
+    # (models/staging/stg_ecommerce__events.sql - incremental, bo tabela realnie rośnie).
+    +materialized: table
+    # persist_docs zapisuje description: z .yml jako metadane BEZPOŚREDNIO w BigQuery (widoczne w
+    # konsoli GCP i narzędziach BI), więc opis kolumny nie żyje tylko w repo - ktoś odpytujący
+    # tabelę wprost z BigQuery Studio widzi ten sam opis, bez zaglądania do dbt docs.
+    +persist_docs:
       relation: true
       columns: true
+    # Tabele dev znikają po 1h (szybki, tani development - nie trzeba pamiętać o ręcznym sprzątaniu
+    # eksperymentalnych przebiegów), prod trzyma dane 7 dni (bufor bezpieczeństwa, nie trwałe
+    # przechowywanie - w realnym projekcie prod miałby to wyłączone albo ustawione znacznie wyżej).
     +hours_to_expiration: |
       {% if target.name == 'dev' %} 1
       {% else %} 168
       {% endif %}
 
     marts:
-      +group: sales  # Przypisanie modeli w marts do grupy "sales" (patrz models/marts/dim_orders.yml)
+      # Group to mechanizm kontroli dostępu (patrz models/marts/dim_orders.yml -> access), nie
+      # tylko etykieta: w większym projekcie/zespole pozwala jednoznacznie przypisać właściciela
+      # modelu (grupa "sales" ma zdefiniowanego ownera - groups: w dim_orders.yml) i ograniczyć,
+      # które inne modele/zespoły mogą go ref()-ować, zamiast polegać na tym, że każdy wie, kto za
+      # co odpowiada. +group na poziomie folderu marts/ - żeby nie trzeba było wpisywać tego samego
+      # w config: każdego kolejnego modelu w tym folderze.
+      +group: sales
 
 
 # Konfiguracja domyślna dla testów w projekcie
 tests:
-  dbt_bigquery_course:
-    +severity: warn  # Wszystkie testy domyślnie ustawione jako ostrzeżenie (warn)
+  ecommerce_analytics:
+    # warn, nie error: pojedynczy nieudany test nie powinien blokować całego dbt build/CI - problem
+    # jakości danych ma być WIDOCZNY, ale pipeline ma polecieć dalej. error ustawiany świadomie
+    # punktowo tam, gdzie naruszenie jest krytyczne (np. primary_key w stg_ecommerce__orders.yml -
+    # złamany klucz główny psuje każdy kolejny join, więc ma zatrzymać build, nie tylko ostrzec).
+    +severity: warn

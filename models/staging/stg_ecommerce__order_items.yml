@@ -12,7 +12,7 @@ models:
         enforced: true
     columns:
       - name: order_item_id
-        # Model tests (run AFTER model is built)
+        # Test dbt - uruchamia się PO zbudowaniu modelu
         tests:
           - not_null:
               config:
@@ -20,10 +20,14 @@ models:
           - unique:
               config:
                 severity: error
-        # Model contract (run BEFORE model is built)
+        # Kontrakt - wymuszany PRZED zbudowaniem modelu
         data_type: INTEGER
         constraints:
-          # Note - we could get rid of the not_null check above as it basically duplicates the contract
+          # Ten sam warunek (not_null) jest tu zapisany DWA razy - w tests: wyżej i w
+          # constraints: tutaj. Można by usunąć test not_null jako duplikat, ale zostawiony
+          # celowo: pokazuje, że to dwa różne mechanizmy działające w różnych momentach (kontrakt
+          # zablokuje build z błędem PRZED utworzeniem tabeli, test złapałby to samo dopiero PO -
+          # w praktyce kontrakt i tak zdąży pierwszy, test tu jest głównie demonstracyjny).
           - type: not_null
 
       - name: order_id

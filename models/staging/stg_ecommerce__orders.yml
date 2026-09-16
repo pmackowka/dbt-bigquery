@@ -60,8 +60,10 @@ models:
 
       - name: status
         description: "{{ doc('status') }}"
-        # Look in documents/ecommerce/doc_ecommerce__status.md for this definition
-        # We can reuse this definition in any column
+        # Treść opisu żyje w osobnym pliku: models/documents/doc_ecommerce__status.md. Po co: ten
+        # sam blok doc() można wkleić w dowolnym innym miejscu (patrz models/marts/dim_orders.yml,
+        # kolumna order_status - identyczne odwołanie), więc opis statusów zamówienia edytuje się
+        # raz, w jednym miejscu, zamiast kopiować ten sam tekst do wielu plików .yml.
         tests:
           - not_null
           - accepted_values:
@@ -73,7 +75,11 @@ models:
                   - Complete
                   - Returned
               config:
-                name: unexpected_order_status # We can name our tests to make it easier to give more meaningful errors
+                # Nadpisanie domyślnej, automatycznie generowanej nazwy testu (byłaby długa i mało
+                # czytelna, np. accepted_values_stg_ecommerce__orders_status__Processing__...) -
+                # własna nazwa trafia do logu przy błędzie, więc od razu wiadomo, co konkretnie
+                # nie przeszło, bez rozszyfrowywania wygenerowanej nazwy.
+                name: unexpected_order_status
 
       - name: num_items_ordered
         description: "Number of items in the order"

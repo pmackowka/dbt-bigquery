@@ -6,13 +6,16 @@ version: 2
 
 seeds:
   - name: seed_distribution_centers_new
-    description: "An example of using a CSV file to load data into your warehouse"
+    description: "Przykład ładowania danych do hurtowni przez plik CSV zamiast source() z bazy"
+    # Test na poziomie całego seeda (nie kolumny) - pilnuje, żeby plik CSV faktycznie miał 2
+    # wiersze. Po co: seed to plik trzymany w repo, ktoś mógłby go przypadkiem nadpisać albo
+    # dodać/usunąć wiersz przy edycji - ten test złapałby taką pomyłkę przy najbliższym dbt test.
     tests:
       - dbt_expectations.expect_table_row_count_to_equal:
           arguments:
             value: 2
 
-    # Column names, descriptions, and tests can all be done as normal
+    # Kolumny seeda dokumentuje i testuje się dokładnie tak samo jak kolumny zwykłego modelu.
     columns:
       - name: id
         tests:
@@ -23,8 +26,11 @@ seeds:
       - name: latitude
       - name: longitude
 
-    # If you want to enforce datatypes, you can do so here
-    # Otherwise, BigQuery will do it for you!
+    # Wymuszenie typów kolumn jest opcjonalne - bez tego BigQuery i tak wykryje typy sam,
+    # zgadując je z zawartości CSV. Robimy to jawnie, bo auto-detekcja bywa zawodna przy małych
+    # plikach (np. kolumna z samymi liczbami całkowitymi w pierwszych wierszach może zostać
+    # rozpoznana jako INTEGER, mimo że dalej w pliku pojawia się wartość z przecinkiem) - jawny
+    # typ eliminuje to ryzyko raz na zawsze, niezależnie od tego, jak zmieni się zawartość pliku.
     config:
       column_types:
         id: INTEGER

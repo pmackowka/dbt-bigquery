@@ -32,7 +32,7 @@ macros/                                    — Jinja, w tym UDF-y z hooka on-run
 analyses/                                  — SQL eksploracyjny, tylko dbt compile
 ```
 
-Nazwa projektu i profilu: `dbt_bigquery_course` (NIE `dbt_bigquery` — ta nazwa koliduje z wewnętrznym pakietem makr adaptera dbt-bigquery, dbt parse rzuca wtedy hard error).
+Nazwa projektu i profilu: `ecommerce_analytics` (NIE `dbt_bigquery` — ta nazwa koliduje z wewnętrznym pakietem makr adaptera dbt-bigquery, dbt parse rzuca wtedy hard error).
 
 ## Historia repo — ważne dla kontekstu
 
