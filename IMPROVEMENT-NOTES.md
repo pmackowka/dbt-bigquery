@@ -264,6 +264,12 @@ nie widzi (Slack/PagerDuty/tabela z `--store-failures`).
 
 ## 7. `stg_ecommerce__events` — brak okna wstecznego w filtrze incremental — pytanie 16
 
+> **Status: zrobione (2026-09-24).** Filtr
+> `created_at > TIMESTAMP_SUB(MAX(created_at), INTERVAL 3 DAY)`, liczba dni
+> w zmiennej Jinja `source_lookback_days` (jedno źródło prawdy, używane też przy
+> punkcie 9). Sprawdzone: `dbt parse` + render Jinja offline z atrapą
+> `is_incremental()`. Niezweryfikowane: faktyczny `MERGE` na BigQuery.
+
 **Problem:** `WHERE created_at > (SELECT MAX(created_at) FROM {{ this }})`
 bez marginesu na spóźnione dane (late-arriving events).
 
