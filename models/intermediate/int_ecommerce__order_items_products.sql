@@ -1,4 +1,16 @@
 {# Intermediate: łączy stg_ecommerce__order_items z produktami (v2), liczy item_profit/item_discount dla dim_orders #}
+{#
+	Ten model MUSI zostać table/view - nie może być ephemeral, choć nikt go nie odpytuje wprost
+	i na pierwszy rzut oka to kandydat do "optymalizacji" (jak int_ecommerce__first_order_created).
+	Blokują to dwie rzeczy, obie niewidoczne z tego pliku:
+	(a) dim_orders.sql skanuje go dbt_utils.get_column_values() przy kompilacji, a makro rzuca
+	    twardy błąd dla modelu ephemeral (czyta z information schema, więc potrzebuje relacji
+	    w bazie) - błąd pojawi się w INNYM pliku niż ten zmieniony;
+	(b) int_ecommerce.yml ma na nim testy (m.in. unique/not_null na order_item_id z severity
+	    error), a test potrzebuje obiektu w bazie, którego ephemeral nie tworzy.
+	Reguła: ephemeral tylko dla modelu, którego nikt nie testuje, nie odpytuje i nie skanuje
+	makrem. first_order_created spełnia wszystkie trzy warunki, ten model - żadnego.
+#}
 WITH products AS (
 	SELECT
 		product_id,
