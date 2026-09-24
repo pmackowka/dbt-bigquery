@@ -9,6 +9,13 @@ sources:
     database: bigquery-public-data
     tables:
       - name: events
+        # Freshness tylko tutaj, celowo nie na pozostałych tabelach - nie "dopisywać wszędzie".
+        # events.created_at to jedyna kolumna, która realnie przybliża moment dopływu danych
+        # (strumień zdarzeń). W orders/order_items created_at to czas zdarzenia BIZNESOWEGO, nie
+        # load time - dzień bez zamówień dałby fałszywy alarm "dane nieświeże", choć pipeline działa.
+        # Przy tabelach wymiarów (products, distribution_centers) brak zmian przez dni to stan
+        # normalny, nie awaria. Uwaga: dbt build nie odpala freshness - to osobna komenda
+        # (dbt source freshness), którą orkiestracja musi wywołać jako bramkę PRZED buildem.
         config:
           freshness:
             warn_after: {count: 12, period: hour}
