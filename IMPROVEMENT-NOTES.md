@@ -134,6 +134,20 @@ porównanie `execution_time` w `target/run_results.json`.
 
 ## 3. `+hours_to_expiration` niszczy sens incremental w dev — pytania 6–9
 
+> **Status: zrobione (2026-09-24).**
+> - `stg_ecommerce__events` ma `hours_to_expiration=none` w `config()`.
+> - Wyrażenie w `dbt_project.yml` w jednej linii: `{{ 1 if target.name == 'dev' else none }}`.
+>   Prod bez expiration (decyzja z pytania „czy prod w ogóle powinien mieć
+>   auto-expiration" — nie powinien). Komentarz „bufor bezpieczeństwa" poprawiony.
+> - Sprawdzone w `target/manifest.json` po `dbt parse`: wartość to int `1` (dev)
+>   i `null` (prod), dla `stg_ecommerce__events` `null` w obu targetach.
+>   Adapter wstawia `OPTIONS(expiration_timestamp=...)` tylko gdy wartość
+>   `is not None` (`dbt/adapters/bigquery/impl.py`), więc `null` = brak expiration.
+> - Pominięte: odwrócenie defaultu na opt-in. W projekcie nie ma folderu
+>   „eksperymentalnego", któremu dało się przypisać expiration, a jedynym modelem,
+>   któremu default szkodzi, jest incremental — ten ma już jawny wyjątek.
+>   Ryzyko przy nowym modelu incremental opisane w komentarzu w `dbt_project.yml`.
+
 **Problem:** globalny default `hours_to_expiration: 1` w dev (dbt_project.yml,
 klucz `models: ecommerce_analytics:`) obejmuje też jedyny model incremental —
 `stg_ecommerce__events`. Tabela znika po godzinie, więc kolejny `dbt run` w
