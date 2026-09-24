@@ -76,12 +76,15 @@ models:
     +hours_to_expiration: "{{ 1 if target.name == 'dev' else none }}"
 
     marts:
-      # Group to mechanizm kontroli dostępu (patrz models/marts/dim_orders.yml -> access), nie
-      # tylko etykieta: w większym projekcie/zespole pozwala jednoznacznie przypisać właściciela
-      # modelu (grupa "sales" ma zdefiniowanego ownera - groups: w dim_orders.yml) i ograniczyć,
-      # które inne modele/zespoły mogą go ref()-ować, zamiast polegać na tym, że każdy wie, kto za
-      # co odpowiada. +group na poziomie folderu marts/ - żeby nie trzeba było wpisywać tego samego
-      # w config: każdego kolejnego modelu w tym folderze.
+      # group (razem z access - patrz models/marts/dim_orders.yml) egzekwuje dokładnie jedną rzecz:
+      # które modele mogą się do siebie odwołać przez ref(), sprawdzane przy kompilacji. To NIE jest
+      # kontrola dostępu: kto może odpalić dbt run, decyduje IAM w GCP (tożsamość z profiles.yml),
+      # a kto może zmienić kod modelu - git (.github/CODEOWNERS + branch protection).
+      # +group na folderze marts/ jest dziedziczone PO CICHU: każdy nowy model wrzucony do marts/
+      # trafia do grupy sales bez żadnej bramki czy przeglądu - to zwykłe dziedziczenie configu.
+      # access celowo NIE jest ustawiony na folderze: nowy model dostaje domyślne protected, a nie
+      # public jak dim_orders. public (= stabilny kontrakt dla innych projektów) ma być jawną
+      # decyzją per model, nie skutkiem tego, w którym folderze leży plik.
       +group: sales
 
 
