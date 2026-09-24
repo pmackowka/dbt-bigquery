@@ -73,6 +73,20 @@ się przy kolejnych aktualizacjach pliku):
 
 ## 1. Separacja dev/prod (profiles.yml.example) — pytania 2, 4
 
+> **Status: zrobione częściowo (2026-09-24).**
+> - Zrobione: `maximum_bytes_billed` w obu targetach (10 GiB dev / 100 GiB prod);
+>   target `prod` czyta własne zmienne `BIGQUERY_PROD_KEYFILE` /
+>   `BIGQUERY_PROD_PROJECT` bez fallbacku na dev (sprawdzone `dbt parse`: dev
+>   działa bez zmiennych prod, prod bez nich pada na brakującym `env_var`).
+>   README opisuje drugie konto serwisowe.
+> - Pominięte: OAuth/impersonation dla dev — zostaje keyfile SA, bo to udokumentowana,
+>   świadoma decyzja z README (przenośność bez logowania); alternatywa opisana
+>   w komentarzu profilu. Workload Identity Federation — w repo nie ma CI/CD, więc
+>   nie ma czego konfigurować. Ograniczenie IAM SA dev do `dbt_dev_*` — to
+>   konfiguracja po stronie GCP, nie kodu repo.
+> - Niezweryfikowane: progi `maximum_bytes_billed` nie były sprawdzone na żywej
+>   bazie (`dbt build` z realnym skanem).
+
 **Problem:** dev i prod dzielą to samo konto serwisowe i ten sam projekt GCP —
 różni je tylko nazwa datasetu.
 
