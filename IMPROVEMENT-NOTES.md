@@ -113,6 +113,11 @@ rozmiar danych).
 
 ## 2. `threads: 64` nieadekwatne do rozmiaru projektu — pytania 3, 4
 
+> **Status: zrobione (2026-09-24).** `threads: 8` w obu targetach, z komentarzem
+> o mechanizmie (klient vs sloty). Niezweryfikowane empirycznie: pomiar
+> `dbt build --threads N` + `run_results.json` wymaga żywej bazy — 8 to
+> oszacowanie z szerokości DAG-u, nie wynik pomiaru.
+
 **Problem:** `threads: 64` w obu targetach, przy DAG-u złożonym z ~7-8 modeli
 bez rodziców (kilkanaście węzłów licząc testy w `dbt build`).
 
