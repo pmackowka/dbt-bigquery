@@ -5,8 +5,7 @@ Projekt dbt Core (BigQuery) zbudowany na bazie projektu szkoleniowego, rozszerzo
 ## Setup i komendy
 
 ```bash
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt          # lock całego stosu z hashami; requirements.in = wejście dla uv pip compile
+uv sync && source .venv/bin/activate     # środowisko 1:1 z uv.lock; alternatywa bez aktywacji: uv run dbt ...
 
 cp profiles.yml.example profiles.yml     # profiles.yml jest w .gitignore, nigdy nie commitować
 export BIGQUERY_PROJECT="twoj-projekt-gcp"
@@ -16,6 +15,8 @@ dbt deps --profiles-dir .
 dbt parse --profiles-dir .               # weryfikacja bez połączenia z BigQuery
 dbt build --profiles-dir .               # seed + snapshot + run + test, wymaga żywego połączenia
 ```
+
+Python przez uv: zależności bezpośrednie w `pyproject.toml`, pełny lock z hashami w `uv.lock`, interpreter w `.python-version`. Nowy pakiet → `uv add <pakiet>` (nie `pip install` — `uv sync` usuwa wszystko spoza locka). `uv.lock` nie edytować ręcznie.
 
 `dbt compile`/`dbt build` wymagają żywej bazy — `dim_orders.sql` używa `dbt_utils.get_column_values()`, które odpytuje BigQuery o listę działów w czasie kompilacji. `dbt parse` tego nie złapie.
 
