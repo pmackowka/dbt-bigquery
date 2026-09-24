@@ -36,15 +36,37 @@
 	tabela znikałaby godzinę po zbudowaniu, więc kolejny dbt run w dev prawie zawsze widziałby
 	is_incremental() = false i budował od zera - ścieżka filtra i MERGE byłaby testowana dopiero
 	w prod. Model incremental żyje z tego, że poprzedni stan tabeli ISTNIEJE.
+
+	incremental_predicates - dokleja warunek do ON w generowanym MERGE (AND z dopasowaniem po
+	event_id). Bez niego ON nie zawiera nic o kolumnie partycjonującej, więc BigQuery nie może
+	wykluczyć żadnej partycji strony docelowej: każdy MERGE skanuje CAŁĄ historię tabeli, a koszt
+	rośnie z wiekiem tabeli, nie z rozmiarem nowej porcji. Predykat na created_at ze stałą
+	względem CURRENT_TIMESTAMP() pozwala przyciąć partycje docelowe do ostatnich dni.
+	Pułapka: przycięta strona docelowa to też przycięte dopasowania. Wiersz ze źródła, którego
+	istniejąca kopia leży POZA oknem predykatu, nie znajdzie pary i zostanie wstawiony drugi raz
+	(duplikat event_id), zamiast zrobić UPDATE. Dlatego okno MERGE musi pokryć całe okno filtra
+	źródła. Te dwa okna mają różne punkty odniesienia: filtr liczy od MAX(created_at) w tabeli,
+	predykat od teraz. Warunek bezpieczeństwa to więc:
+	    merge_lookback_days >= source_lookback_days + dni od ostatniego udanego przebiegu.
+	Te same wartości w obu miejscach (np. 3 i 3) wystarczą tylko wtedy, gdy model biegnie non-stop;
+	jedna przerwa w harmonogramie i MERGE zaczyna wstawiać duplikaty. 7 vs 3 toleruje ok. 4 dni
+	przestoju; po dłuższym - dbt build --full-refresh -s stg_ecommerce__events. Siatka
+	bezpieczeństwa: unique na event_id z severity error (stg_ecommerce__events.yml) zatrzyma
+	build, jeśli duplikat jednak powstanie.
 #}
 {#- Ile dni wstecz od MAX(created_at) w tabeli doczytujemy ze źródła - patrz filtr na dole pliku. -#}
 {%- set source_lookback_days = 3 -%}
+{#- Ile dni wstecz od TERAZ MERGE szuka dopasowań w tabeli docelowej - patrz incremental_predicates. -#}
+{%- set merge_lookback_days = 7 -%}
 
 {{
 	config(
 		materialized='incremental',
 		hours_to_expiration=none,
 		unique_key='event_id',
+		incremental_predicates=[
+			"DBT_INTERNAL_DEST.created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL " ~ merge_lookback_days ~ " DAY)"
+		],
 		on_schema_change='append_new_columns',
 		partition_by={
 			"field": "created_at",
