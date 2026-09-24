@@ -68,6 +68,13 @@ models:
 
     versions:  # Wersjonowanie modelu — pozwala kontrolować zmiany schematu
         - v: 1  # Wersja 1 modelu
+          # Data końca życia v1. Bez niej wersjonowanie chroni przed cichą zmianą schematu, ale nie
+          # daje ścieżki wyjścia: konsument przypięty do starej wersji nigdy nie dostaje sygnału, że
+          # ma migrować, a v1 buduje się (i kosztuje czas) przy każdym dbt run bez końca. Z datą dbt
+          # ostrzega każdego, kto ref()-uje v1 po jej upływie - ostrzeżenie da się wyłapać w CI
+          # (np. --warn-error-options). Dziś v1 nie ma ani jednego konsumenta (jedyny pin w repo to
+          # version=2 w int_ecommerce__order_items_products.sql), więc po tej dacie do usunięcia.
+          deprecation_date: 2026-12-31
           columns:
           - include: all  # Dołącz wszystkie kolumny
             exclude: [brand]  # Z wyjątkiem `brand`, który został dodany dopiero w wersji 2
