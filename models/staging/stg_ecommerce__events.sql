@@ -12,12 +12,19 @@
 	przebiegach (potrzebne przy strategii merge/upsert - bez tego incremental tylko dokleja
 	wiersze, nie potrafi rozpoznać duplikatu, gdyby ten sam event trafił do źródła dwa razy).
 
-	on_schema_change='sync_all_columns' - jeśli źródłowa tabela events dostanie nową/usuniętą
-	kolumnę, dbt sam dostosuje schemat docelowej tabeli przy najbliższym run. Alternatywa -
-	on_schema_change='fail' (użyta w siostrzanym repo dbt-snowflake dla fct_reviews) świadomie
-	przerywa build zamiast automatycznie dostosowywać schemat; tu wybrano wygodę automatycznej
-	synchronizacji, bo events to tabela wewnętrzna projektu (mniejsze ryzyko niespodziewanej,
-	cichej zmiany struktury niż przy tabeli współdzielonej z innym zespołem/systemem).
+	on_schema_change='append_new_columns' - co się dzieje, gdy kolumny WYNIKU MODELU (SELECT w tym
+	pliku) przestają się zgadzać z istniejącą tabelą. Trigger to edycja tego .sql, nie zmiana
+	w źródle: SELECT wymienia kolumny z nazwy, więc nowa kolumna w źródle niczego tu nie zmienia,
+	dopóki ktoś nie dopisze jej do SELECT-a.
+	Dlaczego nie sync_all_columns (poprzednia wartość): synchronizuje w obie strony, czyli usunięcie
+	kolumny z SELECT-a wykonuje na tabeli ciche DROP COLUMN - razem z całą historią tej kolumny, bez
+	ostrzeżenia. W tabeli incremental historii nie odbudowuje zwykły run, tylko --full-refresh
+	(tu akurat możliwy, bo źródło trzyma całą historię - ale to cecha publicznego datasetu, nie
+	gwarancja). append_new_columns tylko DOKŁADA kolumny: usunięta z SELECT-a zostaje w tabeli
+	z NULL-ami w nowych wierszach, a jej skasowanie jest osobną, świadomą decyzją.
+	Ostrzejsza alternatywa - 'fail' (użyta w siostrzanym repo dbt-snowflake dla fct_reviews) -
+	zatrzymuje build przy każdej rozbieżności i wymusza --full-refresh; przy dużej tabeli eventów
+	to drogi rebuild za każdym razem, gdy model zyskuje kolumnę.
 
 	partition_by - dzieli fizyczną tabelę w BigQuery na kawałki po dniu (created_at). Po co:
 	zapytanie filtrujące po dacie (np. "eventy z ostatniego tygodnia") skanuje TYLKO partycje
@@ -38,7 +45,7 @@
 		materialized='incremental',
 		hours_to_expiration=none,
 		unique_key='event_id',
-		on_schema_change='sync_all_columns',
+		on_schema_change='append_new_columns',
 		partition_by={
 			"field": "created_at",
 			"data_type": "timestamp",
