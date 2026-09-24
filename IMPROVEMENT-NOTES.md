@@ -477,6 +477,18 @@ Dockera przypięty po digeście.
 
 ## 13. Martwy kod: `codegen`, `v1` produktów, `more_example_jinja` — pytania 30, 32, 36
 
+> **Status: zrobione (2026-09-24).**
+> - `dbt-labs/codegen` usunięty z `packages.yml` (zostaje własna kopia makra);
+>   `package-lock.yml` zregenerowany przez `dbt deps`, nagłówek z komentarzem
+>   przywrócony ręcznie, ponowne `dbt deps` nie zmienia pliku. Sprawdzone
+>   `dbt parse`: w manifeście jest tylko `macro.ecommerce_analytics.generate_base_model`.
+>   Niesprawdzone: `dbt run-operation generate_base_model` (wymaga połączenia,
+>   bo czyta kolumny źródła).
+> - `v1` produktów: `deprecation_date: 2026-12-31` zamiast usunięcia — patrz
+>   punkt 16.
+> - `more_example_jinja`: zostaje, z komentarzem, że to przykład dydaktyczny
+>   (jedyna demonstracja introspekcji relacji), nie element pipeline'u.
+
 **Problem:** trzy niezależne przypadki kodu, który się instaluje/buduje
 i nie ma ani jednego konsumenta:
 - **`dbt-labs/codegen`** w `packages.yml` — repo ma **własną kopię** makra
@@ -567,6 +579,12 @@ warunki, `order_items_products` żadnego.
 ---
 
 ## 16. Wersjonowanie modeli bez ścieżki wyjścia — pytania 31, 32
+
+> **Status: zrobione (2026-09-24).** `deprecation_date: 2026-12-31` na v1
+> w `stg_ecommerce__products.yml`, z komentarzem o ścieżce wyjścia i warunku
+> usunięcia (v1 nie ma konsumentów). Sprawdzone w manifeście po `dbt parse`.
+> Ostrzeżeń dbt o deprecacji nie widać przed tą datą, bo nikt nie `ref()`-uje v1 —
+> zachowanie po dacie niesprawdzone.
 
 **Problem:** `stg_ecommerce__products` ma dwie wersje (v1 bez `brand`,
 v2 z `brand`, `latest_version: 2`, v2 z `alias: stg_ecommerce__products`),
