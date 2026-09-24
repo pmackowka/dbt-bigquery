@@ -1,0 +1,23 @@
+# Testy dla stg_ecommerce__events - jedynego modelu incremental. Model do tej pory nie miał żadnych
+# testów, a to właśnie tu MERGE może po cichu zepsuć dane: incremental_predicates przycina stronę
+# docelową, więc po przestoju dłuższym niż margines okien (patrz komentarz w .sql) powtórzony event
+# zostanie WSTAWIONY drugi raz zamiast zaktualizowany. Build nie zgłosi przy tym żadnego błędu -
+# zgłosi go dopiero ten test.
+version: 2
+
+models:
+  - name: stg_ecommerce__events
+    description: "User events (page views, cart actions) from thelook_ecommerce, loaded incrementally"
+    columns:
+      - name: event_id
+        description: "Unique identifier of the event - unique_key of the incremental MERGE"
+        tests:
+          # error, nie domyślny warn: duplikat event_id to nie problem kosmetyczny, tylko dowód, że
+          # MERGE nie znalazł pary dla istniejącego wiersza - każda metryka liczona z eventów
+          # będzie zawyżona. Build ma się zatrzymać, a nie przejść z ostrzeżeniem w logu.
+          - unique:
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: error
