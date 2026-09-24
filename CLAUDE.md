@@ -6,7 +6,7 @@ Projekt dbt Core (BigQuery) zbudowany na bazie projektu szkoleniowego, rozszerzo
 
 ```bash
 python3 -m venv venv && source venv/bin/activate
-pip install --require-hashes -r requirements.lock   # lock całego stosu; requirements.txt = wejście dla uv pip compile
+pip install -r requirements.txt          # lock całego stosu z hashami; requirements.in = wejście dla uv pip compile
 
 cp profiles.yml.example profiles.yml     # profiles.yml jest w .gitignore, nigdy nie commitować
 export BIGQUERY_PROJECT="twoj-projekt-gcp"
