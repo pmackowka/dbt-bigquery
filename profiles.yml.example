@@ -24,7 +24,15 @@ ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
       dataset: dbt_dev_project
       location: US
       priority: interactive
-      threads: 64
+      # threads = ile jobów dbt wysyła do BigQuery JEDNOCZEŚNIE (limit po stronie klienta), nie
+      # moc obliczeniowa. BigQuery on-demand nie ma warehouse'u do przeciążenia jak Snowflake:
+      # sloty przydziela per job, a rachunek liczy bajty - więc threads nie zmienia kosztu, tylko
+      # czas ścienny i to, ile jobów naraz zajmuje wspólną pulę projektu. Szerokość DAG-u tego
+      # projektu to kilka modeli bez wzajemnych zależności (kilkanaście węzłów z testami), więc 64
+      # nigdy nie byłoby wykorzystane, a skopiowane do większego projektu dawało mylny sygnał.
+      # 8 z zapasem pokrywa najszerszy poziom DAG-u; realną wartość wyznacza się empirycznie:
+      # dbt build --threads N dla kilku N i porównanie execution_time w target/run_results.json.
+      threads: 8
       job_execution_timeout_seconds: 300
       job_retries: 1
       # Twardy limit kosztu pojedynczego zapytania: BigQuery on-demand rozlicza ZESKANOWANE BAJTY,
@@ -53,7 +61,7 @@ ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
       dataset: dbt_prod_project
       location: US
       priority: interactive
-      threads: 64
+      threads: 8  # uzasadnienie przy targecie dev
       job_execution_timeout_seconds: 300
       job_retries: 1
       # Wyżej niż w dev, bo prod przebudowuje pełne tabele (w tym --full-refresh modelu
