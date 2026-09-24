@@ -43,6 +43,12 @@ models:
     # przy każdym dbt run jest pomijalny, a odczyt z gotowej tabeli jest szybszy niż z widoku
     # przeliczanego za każdym zapytaniem - view/incremental włączane punktowo tam, gdzie się opłaca
     # (models/staging/stg_ecommerce__events.sql - incremental, bo tabela realnie rośnie).
+    # ZAŁOŻENIE DO REWIZJI: to działa tylko dla obecnej skali publicznego datasetu demo. table
+    # płaci pełny skan źródła przy KAŻDYM dbt run, view - dopiero gdy ktoś go odpyta. Przy źródle
+    # rzędu setek GB i codziennym harmonogramie koszt compute rebuildów staging dominuje nad
+    # storage o rząd wielkości. Wtedy: staging jako view (dziś jedynym konsumentem staging są
+    # modele intermediate/marts, nie BI), table/incremental tylko dla martów i dużych, często
+    # odpytywanych źródeł.
     +materialized: table
     # persist_docs zapisuje description: z .yml jako metadane BEZPOŚREDNIO w BigQuery (widoczne w
     # konsoli GCP i narzędziach BI), więc opis kolumny nie żyje tylko w repo - ktoś odpytujący
