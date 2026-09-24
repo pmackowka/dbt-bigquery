@@ -70,11 +70,19 @@ Dataset źródłowy `bigquery-public-data.thelook_ecommerce` jest publiczny — 
 git clone https://github.com/pmackowka/dbt-bigquery.git
 cd dbt-bigquery
 
-python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt  # lock: dokładne wersje CAŁEGO stosu z hashami, nie tylko adaptera
-                                  # (requirements.in to wejście dla locka - patrz komentarz w pliku)
+uv sync                       # tworzy .venv DOKŁADNIE według uv.lock (w razie potrzeby pobiera też Pythona 3.11)
+source .venv/bin/activate     # Windows: .venv\Scripts\activate - albo bez aktywacji: uv run dbt ...
 ```
+
+Środowisko Pythona zarządzane jest przez [uv](https://docs.astral.sh/uv/) (`brew install uv`). Za odtwarzalność odpowiadają trzy pliki:
+
+| Plik | Kto go pisze | Co zawiera |
+|---|---|---|
+| `pyproject.toml` | ręcznie | zależności bezpośrednie (tylko adapter `dbt-bigquery`) |
+| `uv.lock` | `uv lock` / `uv add` | całe drzewo zależności: dokładne wersje + hashe plików |
+| `.python-version` | ręcznie | wersja interpretera (3.11) |
+
+Samo przypięcie adaptera nie wystarcza: dbt-core i kilkadziesiąt pakietów pod nim idą zakresami, więc dwie instalacje w odstępie miesięcy dają różne środowiska (w tym repo: dbt-core 1.12.4 → 1.12.5 bez żadnej zmiany w kodzie). Pakiety dbt mają swój lock (`package-lock.yml`), a `uv.lock` domyka tę samą lukę warstwę niżej. Nową zależność dodaje się przez `uv add <pakiet>`, a nie `pip install`: `uv sync` usuwa wszystko, czego nie ma w locku.
 
 ### 3. Konfiguracja połączenia
 
