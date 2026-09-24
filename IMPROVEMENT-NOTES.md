@@ -361,6 +361,16 @@ wierszy (bo strona `DBT_INTERNAL_DEST` jest przycięta predykatem) i wstawi
 
 ## 10. Seed bez udokumentowanego sensu biznesowego — pytanie 24
 
+> **Status: zrobione częściowo (2026-09-24).**
+> - Zrobione: `description:` w `seeds.yml` mówi, czym są dane (centra 11–12
+>   spoza źródła), plus komentarz o trzech tabelach o zbliżonych nazwach.
+>   Informację „id 11–12 nieobecne w źródle" przejąłem z tej notatki — w tej sesji
+>   nie było jak jej sprawdzić na BigQuery.
+> - Pominięte: model intermediate z `UNION ALL` źródła i seeda. Też nie miałby
+>   konsumenta, więc przesunąłby „wiszący" obiekt o warstwę niżej i dołożył
+>   jeden build przy każdym przebiegu. Brak konsumenta opisany w komentarzu
+>   jako świadoma izolacja przykładu.
+
 **Problem:** `seeds/seed_distribution_centers_new.csv` ma nazwę niemal
 identyczną ze źródłem `thelook_ecommerce.distribution_centers`, na którym stoi
 snapshot. Opis w `seeds.yml` mówi wyłącznie o mechanizmie („przykład ładowania
