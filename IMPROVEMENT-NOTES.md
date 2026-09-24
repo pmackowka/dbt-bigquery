@@ -630,6 +630,33 @@ deklaruje koniec życia wersji, konsument ma okno na migrację.
 
 ## 17. Rzeczy sprawdzone i **uznane za poprawne** (nie zmieniać)
 
+> **Status (2026-09-24):** kod bez zmian, dopisane tylko komentarze
+> z uzasadnieniem: liczby limitów partycji w `stg_ecommerce__events.sql`,
+> powód freshness tylko na `events` w `src_ecommerce.yml`. Kotwice YAML
+> w `int_ecommerce.yml` mają już komentarze — bez zmian.
+>
+> **Dwie korekty tej sekcji po weryfikacji:**
+> - Limity partycji: BigQuery ma dziś **10 000 partycji na tabelę** i **4 000
+>   partycji modyfikowanych przez jeden job**. Liczby niżej (~11 lat / ~166 dni)
+>   pasują do limitu na job, czyli do pełnego `--full-refresh`. Limit na tabelę
+>   daje ~27 lat (`day`) / ~416 dni (`hour`). Wniosek („day, nie hour") bez zmian.
+> - **`target_schema='snapshots_project'` — punkt niżej jest BŁĘDNY.**
+>   `dbt parse` na obu targetach daje w manifeście ten sam schemat
+>   `snapshots_project`, bez prefiksu (`relation_name` dev:
+>   `` `<projekt>`.`snapshots_project`.`snapshot__distribution_centers` ``).
+>   `target_schema` to starszy config snapshotów, używany dosłownie — **nie**
+>   przechodzi przez `generate_schema_name`; prefiks `target.schema` dostaje
+>   dopiero nowy config `schema=` (dbt ≥ 1.9). Skutek: przy jednym projekcie GCP
+>   dev i prod piszą do **tej samej** tabeli historii SCD2 — `dbt snapshot`
+>   w dev modyfikuje historię prod. Po punkcie 1 (prod z osobnym
+>   `BIGQUERY_PROD_PROJECT`) kolizja znika tylko wtedy, gdy prod faktycznie stoi
+>   w innym projekcie GCP.
+>   **Nie poprawiałem kodu:** zmiana na `schema='snapshots_project'` przenosi
+>   snapshot do `dbt_<env>_project_snapshots_project`, a istniejąca historia
+>   w `snapshots_project` zostaje porzucona (nowa tabela zaczyna SCD2 od zera).
+>   To decyzja do podjęcia świadomie, najlepiej z migracją danych
+>   (`CREATE TABLE ... AS SELECT` ze starej tabeli przed pierwszym przebiegiem).
+
 - **`partition_by` po dniu, nie po godzinie** (`stg_ecommerce__events`) —
   poprawna decyzja: limit liczby partycji na tabelę w BigQuery. Przy `day`
   daje to ~11 lat historii do limitu, przy `hour` tylko ~166 dni (niecałe pół
