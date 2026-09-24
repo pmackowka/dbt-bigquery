@@ -317,6 +317,24 @@ opisywał faktyczny trigger.
 
 ## 9. `MERGE` bez `incremental_predicates` — koszt rośnie z całą historią — pytania 18–19
 
+> **Status: zrobione, ze zmianą względem notatki (2026-09-24).**
+> - `incremental_predicates` na `DBT_INTERNAL_DEST.created_at` z oknem
+>   **7 dni**, nie 3. Gotcha poniżej („oba okna na tej samej wartości") jest
+>   niepełna: filtr źródła liczy od `MAX(created_at)` w tabeli, predykat od
+>   `CURRENT_TIMESTAMP()`. Równe okna działają tylko przy nieprzerwanym
+>   harmonogramie — po N dniach przestoju strona docelowa jest przycięta o N dni
+>   za mocno i `MERGE` wstawia duplikaty. Poprawny warunek:
+>   `okno MERGE >= okno źródła + czas od ostatniego przebiegu`. 7 vs 3 toleruje
+>   ~4 dni przestoju; dłużej → `--full-refresh`.
+> - Dodany `stg_ecommerce__events.yml` z `unique`/`not_null` na `event_id`
+>   (`error`) — model wcześniej nie miał żadnych testów, a duplikat z `MERGE` nie
+>   daje błędu buildu. Koszt: test `unique` skanuje całą tabelę przy każdym
+>   `dbt build`; przy dużej tabeli do rozważenia `where` na ostatnie dni.
+> - Sprawdzone: predykat w manifeście po `dbt parse`, makro `merge` adaptera
+>   dokleja go do `ON` przez `AND` (`dbt/include/bigquery/.../merge.sql`).
+>   Niezweryfikowane: przycinanie partycji w realnym `MERGE` (bytes processed
+>   w historii jobów) — wymaga żywej bazy.
+
 **Problem:** brak `incremental_predicates` w configu `stg_ecommerce__events`.
 Warunek `ON` w generowanym `MERGE` nie zawiera predykatu na kolumnie
 partycjonującej, więc BigQuery nie może wykluczyć żadnej partycji strony
