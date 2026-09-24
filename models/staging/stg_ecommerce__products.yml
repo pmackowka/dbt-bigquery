@@ -48,6 +48,13 @@ models:
                   - "Men"
                   - "Women"
                 quote: true  # Wartości typu tekstowego, muszą być ujęte w cudzysłowy
+              config:
+                # error, nie domyślny warn: ta kolumna steruje SCHEMATEM dim_orders (pętla po
+                # get_column_values tworzy kolumnę total_sold_* na każdy dział). Na warn nowy dział
+                # przechodzi z ostrzeżeniem, a dim_orders buduje się z nową, nieopisaną
+                # i nietestowaną kolumną. Na error dbt build zatrzymuje się tutaj i pomija modele
+                # zależne - zmiana schematu publicznego martu wymaga świadomej decyzji.
+                severity: error
 
       - name: brand  # Marka produktu
         description: "Brand of the product"  # Opis kolumny w dokumentacji
