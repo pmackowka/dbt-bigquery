@@ -181,6 +181,14 @@ w ogóle powinien mieć auto-expiration.
 
 ## 4. Domyślna materializacja `table` dla staging nie skaluje się — pytanie 10
 
+> **Status: zrobione jako dokumentacja, materializacja bez zmian (2026-09-24).**
+> Poprawka z tego punktu to jawne założenie — dopisane w komentarzu przy
+> `+materialized: table` w `dbt_project.yml` (warunek rewizji + docelowy wzorzec).
+> Przełączenie staging na `view` pominięte świadomie: przy datasecie demo zysk
+> kosztowy jest pomijalny, a zmiana materializacji dotyka kontraktu
+> `stg_ecommerce__order_items` i czasu budowania `dim_orders` — trade-off, którego
+> w tej skali nie da się obronić.
+
 **Problem:** `+materialized: table` jako default dla całego projektu,
 uzasadnione komentarzem "dataset jest mały".
 
