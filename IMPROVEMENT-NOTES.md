@@ -1,10 +1,10 @@
 # Notatki z sesji `/ucz` — co warto poprawić w tym projekcie
 
 > Powstało w trakcie interaktywnej sesji nauki (`/ucz`) nad konfiguracją projektu
-> `dbt-bigquery`. Aktualizowane co 5–10 pytań sesji, nie po każdym. Ostatnia
-> aktualizacja: pytanie 26/27, sesja z 2026-09-21/24.
+> `dbt-bigquery`. Sesja z 2026-09-21/24 zamknięta na pytaniu 36 — materiał
+> konfiguracyjny repo przerobiony w całości.
 
-Ten plik ma dwie odrębne role. Sekcje 1–13 poniżej to wspólny surowiec dla obu —
+Ten plik ma dwie odrębne role. Sekcje 1–18 poniżej to wspólny surowiec dla obu —
 różni się tylko to, co się z nim robi dalej.
 
 ## Rola 1 — materiał na artykuł (repo Personal-Page)
@@ -22,7 +22,7 @@ trybu rozkazującego użytego w środku.
 
 ```text
 Napisz artykuł do bloga na podstawie IMPROVEMENT-NOTES.md z repo dbt-bigquery
-(sekcje z poprawkami 1–11 + „Do artykułu — kandydaci na osobne sekcje" na
+(sekcje z poprawkami 1–16 + „Do artykułu — kandydaci na osobne sekcje" na
 końcu pliku).
 Materiał: konkretne pułapki konfiguracji dbt na BigQuery, wykryte w trakcie
 sesji nauki na realnym (choć małym) projekcie — mechanizm i konsekwencja,
@@ -36,13 +36,13 @@ w repo Personal-Page (źródło prawdy, nie esencja z globalnego CLAUDE.md).
 
 ## Rola 2 — gotowy prompt dla sesji wdrożeniowej
 
-Punkty 1–11 to kontekst do wklejenia w nowej sesji Claude Code, która ma
+Punkty 1–16 to kontekst do wklejenia w nowej sesji Claude Code, która ma
 wdrożyć te poprawki w kodzie. Gotowy prompt (dane, nie instrukcja — patrz
 uwaga wyżej):
 
 ```text
 Przeczytaj IMPROVEMENT-NOTES.md w tym repo. Sekcje z nagłówkiem "Problem:"
-(dziś 1–11) to lista poprawek do konfiguracji dbt wypracowana w sesji /ucz.
+(dziś 1–16) to lista poprawek do konfiguracji dbt wypracowana w sesji /ucz.
 Wdróż je w kodzie, zmiana po zmianie, w plikach wskazanych przy każdym punkcie
 (profiles.yml.example, dbt_project.yml,
 models/staging/stg_ecommerce__events.sql,
@@ -64,7 +64,7 @@ nagłówku numery pytań z sesji `/ucz`, dla odtworzenia kontekstu rozumowania.
 Trzy grupy sekcji, rozpoznawalne po nagłówku, nie po numerze (numery przesuwają
 się przy kolejnych aktualizacjach pliku):
 
-- **Poprawki do wdrożenia** — sekcje z polem **Problem:** (dziś 1–11).
+- **Poprawki do wdrożenia** — sekcje z polem **Problem:** (dziś 1–16).
 - **„Rzeczy sprawdzone i uznane za poprawne"** — świadome decyzje, których nie
   zmieniać, z uzasadnieniem dlaczego.
 - **„Znaleziska mechaniczne"** — wiedza kontekstowa, zero zmian w kodzie.
@@ -325,7 +325,139 @@ konsumuje, wisi w projekcie bez żadnego `ref()`.
 
 ---
 
-## 12. Rzeczy sprawdzone i **uznane za poprawne** (nie zmieniać)
+## 12. Determinizm zatrzymuje się w połowie stosu — `requirements.txt` — pytanie 29
+
+**Problem:** `requirements.txt` przypina dokładnie jedną rzecz —
+`dbt-bigquery==1.12.0` (adapter). `dbt-core` idzie zakresem z adaptera
+(`manifest.json` pokazuje `dbt_version: 1.12.4`, czyli inną liczbę niż
+adapter — to dwa różne pakiety, nie sprzeczność), a wszystkie zależności
+tranzytywne (jinja2, agate, `google-cloud-bigquery`, protobuf…) są
+nieprzypięte.
+
+**Dlaczego ma znaczenie:** warstwa pakietów dbt ma pełny lock
+(`package-lock.yml` + `sha1_hash`), a warstwa Pythona **pod** nią — która może
+złamać wszystko — nie ma żadnego. `pip install -r requirements.txt` za trzy
+miesiące da inne środowisko niż dziś, bez żadnej zmiany w repo. Klasyczne
+„u mnie działa": niezgodność protobuf / `google-cloud-bigquery` wywala
+instalację bez Twojej ingerencji.
+
+**Poprawka:** lock dla Pythona — `pip-compile` (pip-tools) albo
+`uv pip compile` generujące `requirements.lock` z hashami, ewentualnie
+Poetry/PDM. Minimum: `pip freeze` po zweryfikowanym środowisku. Docelowo obraz
+Dockera przypięty po digeście.
+
+---
+
+## 13. Martwy kod: `codegen`, `v1` produktów, `more_example_jinja` — pytania 30, 32, 36
+
+**Problem:** trzy niezależne przypadki kodu, który się instaluje/buduje
+i nie ma ani jednego konsumenta:
+- **`dbt-labs/codegen`** w `packages.yml` — repo ma **własną kopię** makra
+  `generate_base_model` w `macros/macro_generate_base_table.sql`. Makra
+  projektu mają pierwszeństwo nad makrami pakietów, więc
+  `dbt run-operation generate_base_model` odpala kopię lokalną, **nie** wersję
+  z pakietu. Grep potwierdza: żadne inne makro codegen (`generate_source`,
+  `generate_model_yaml`) nie jest w repo używane.
+- **`stg_ecommerce__products_v1`** — buduje się przy każdym `dbt run`, przechodzi
+  testy, kosztuje czas. Grep potwierdza: jedyny pin wersji w całym repo to
+  `version=2` w `int_ecommerce__order_items_products.sql:10`. Nikt nie odwołuje
+  się do v1. Brak też `deprecation_date`, więc nic nie wymusza jej usunięcia.
+- **`macros/more_example_jinja.sql`** — nie jest wołane z żadnego modelu,
+  tylko ręcznie, i tylko loguje.
+
+**Dlaczego ma znaczenie:** `packages.yml` sugeruje, że działa codegen z pakietu
+— czytający wyciągnie błędny wniosek. dbt **nie ma** podziału na zależności dev
+i prod (brak odpowiednika `devDependencies`), więc jedyną dźwignią jest krótka
+lista pakietów.
+
+**Poprawka:** albo usunąć `codegen` z `packages.yml` (skoro używasz własnej
+kopii), albo usunąć własną kopię i wołać makro z pakietu — ale nie trzymać obu
+pod tą samą nazwą. Do `v1` dodać `deprecation_date` albo ją usunąć.
+`more_example_jinja` zostawić tylko jeśli repo ma jawnie pełnić funkcję
+portfolio dydaktycznego — wtedy dopisać to w komentarzu.
+
+---
+
+## 14. Mart może po cichu zmienić schemat — kontrakt — pytania 33, 34
+
+**Problem:** `dim_orders.sql` generuje kolumny miarowe pętlą Jinja po wyniku
+`dbt_utils.get_column_values(...)`, a `dim_orders` ma `access: public` —
+deklarowany kontrakt bez żadnego egzekwowania.
+
+**Dlaczego ma znaczenie — pełny łańcuch przy nowym dziale `Kids` w źródle:**
+1. `accepted_values` na `department` pada — ale na **warn** (globalny default),
+   więc nic nie blokuje.
+2. `dim_orders` przebudowuje się z nową kolumną `total_sold_kidsswear`
+   (podwójne „s" — wzór `{{ department.lower() }}swear` działa tylko dlatego,
+   że `men`/`women` przypadkiem tworzą sensowne słowo po dodaniu `swear`).
+3. Brak opisu w `dim_orders.yml` → brak opisu w metadanych BigQuery.
+4. **Brak jakiegokolwiek testu na nowej kolumnie** — jedyna świeża miara
+   biznesowa w marcie jest jednocześnie jedyną nietestowaną.
+
+**Dodatkowo — kolejność kolumn nie jest stabilna:** `get_column_values` ma
+domyślne `order_by='count(*) desc'`, więc kolejność kolumn `total_sold_*`
+zależy od **liczności działów w danych**. Gdy Womenswear przeskoczy Menswear
+w wolumenie, kolumny zamienią się miejscami przy najbliższym przebiegu, bez
+żadnej zmiany w kodzie. Dla `SELECT *` w BI to zmiana kontraktu.
+
+**Poprawka:**
+- `contract: enforced: true` w configu `dim_orders` — dbt porównuje kolumny
+  z YAML z faktycznym wynikiem modelu i **przerywa build** przy rozjeździe.
+  Koszt: trzeba podać `data_type` każdej kolumny. Zysk: `access: public`
+  przestaje być deklaracją bez pokrycia.
+- `accepted_values` na `department` podnieść do `error` — to konkretny,
+  mocniejszy przykład pod punkt 6 niż ogólna reguła.
+- Rozważyć `total_sold_{{ department | lower | replace(' ', '_') }}` zamiast
+  sklejania z `swear` — ale to zmiana łamiąca nazwy istniejących kolumn, więc
+  wymaga podbicia wersji modelu, jak przy `products`.
+
+---
+
+## 15. Niejawne ograniczenie materializacji w intermediate — pytanie 35
+
+**Problem:** `int_ecommerce__order_items_products` **nie może** być
+`ephemeral`, ale nigdzie tego nie napisano.
+
+**Dlaczego ma znaczenie:** blokują to dwie niezależne rzeczy, obie niejawne:
+- `dbt_utils._is_ephemeral()` w `get_column_values` rzuca twardy błąd
+  kompilacji („cannot be used with ephemeral models, as it relies on the
+  information schema") — wołane z `dim_orders.sql`, czyli z **innego pliku**.
+- `int_ecommerce.yml` definiuje **10 testowanych kolumn** tego modelu, w tym
+  `order_item_id` z `not_null`/`unique` na `severity: error`. Testy wymagają
+  relacji w bazie, której `ephemeral` nie tworzy.
+
+Ktoś optymalizujący koszty („skoro nikt tego nie odpytuje, niech będzie
+ephemeral" — rozumowanie poprawne w ogólności) dowie się o tym z błędu
+kompilacji.
+
+**Poprawka:** komentarz w `int_ecommerce__order_items_products.sql`: że model
+musi pozostać `table`/`view`, bo (a) `dim_orders` skanuje go
+`get_column_values`, (b) ma testy, które wymagają relacji. Realna reguła:
+`ephemeral` jest dopuszczalny tylko dla modelu, którego nikt nie testuje, nie
+odpytuje i nie skanuje makrem — `first_order_created` spełnia wszystkie trzy
+warunki, `order_items_products` żadnego.
+
+---
+
+## 16. Wersjonowanie modeli bez ścieżki wyjścia — pytania 31, 32
+
+**Problem:** `stg_ecommerce__products` ma dwie wersje (v1 bez `brand`,
+v2 z `brand`, `latest_version: 2`, v2 z `alias: stg_ecommerce__products`),
+ale **żadna wersja nie ma `deprecation_date`**.
+
+**Dlaczego ma znaczenie:** mechanizm wersjonowania daje tu ochronę przed cichą
+zmianą (jedyny wewnętrzny konsument jest zapinowany na `version=2`, więc
+przestawienie `latest_version` go nie ruszy), ale **nie daje ścieżki wyjścia**:
+pin bez daty wygaśnięcia u producenta to niewidoczny dług — nikt nigdy nie
+przechodzi na nowszą wersję, a v1 żyje wiecznie (patrz też punkt 13).
+
+**Poprawka:** dodać `deprecation_date` do v1 — dbt zaczyna wtedy ostrzegać
+konsumentów, a ostrzeżenie da się wyłapać w CI. To domyka pętlę: producent
+deklaruje koniec życia wersji, konsument ma okno na migrację.
+
+---
+
+## 17. Rzeczy sprawdzone i **uznane za poprawne** (nie zmieniać)
 
 - **`partition_by` po dniu, nie po godzinie** (`stg_ecommerce__events`) —
   poprawna decyzja: limit liczby partycji na tabelę w BigQuery. Przy `day`
@@ -349,7 +481,56 @@ konsumuje, wisi w projekcie bez żadnego `ref()`.
 
 ---
 
-## 13. Znaleziska mechaniczne, do zapamiętania (nie wymagają zmiany kodu)
+- **Kotwice YAML (`&user_id` / `*user_id`) w `int_ecommerce.yml`** — sensowne
+  DRY dla powtarzalnej definicji kolumny; działa na poziomie parsera YAML, nie
+  wymaga niczego od dbt. Zostaje bez zmian.
+
+## 18. Znaleziska mechaniczne, do zapamiętania (nie wymagają zmiany kodu)
+
+- **Kolejność wersjonowania: `latest_version` vs pin** — pytanie 32.
+  `ref('model')` bez wersji podąża za `latest_version` (zmiana schematu
+  propaguje się bez edycji kodu konsumenta). `ref('model', version=2)` jest
+  na to odporny, ale nigdy się sam nie zmigruje. Ruch wymusza dopiero
+  `deprecation_date` po stronie producenta. Każda istniejąca wersja buduje się
+  jako **osobna tabela** (`_v1` domyślnie, v2 tu przez `alias` bez sufiksu) —
+  `latest_version` nie wyłącza starszych.
+- **`dbt parse` nie jest wiarygodną bramką dla `dim_orders`** — pytanie 33.
+  W trybie parsowania `execute` jest `false`, więc `get_column_values` zwraca
+  pustą listę (jawny warunek na początku makra), pętla wykonuje się zero razy
+  i model kompiluje się **bez ani jednej kolumny miarowej**, kończąc sukcesem.
+  Ten sam mechanizm cichej utraty kolumn stał za błędem naprawionym z
+  `answers/` (commit `c93a740`). Realna weryfikacja tego modelu wymaga żywego
+  połączenia (`dbt compile`/`build`).
+- **Dlaczego `get_column_values` w ogóle odpytuje bazę przy kompilacji** —
+  pytanie 33. Makro używa `statement(..., fetch_result=true)`, czyli
+  **wykonuje** zapytanie i czeka na wynik, bo liczba kolumn generowanych pętlą
+  zależy od danych. Odwraca to zwykłą kolejność: zapytanie pomocnicze →
+  kompilacja → wykonanie modelu.
+- **Trzy typy makr w repo to taksonomia dydaktyczna, nie wzorzec** —
+  pytanie 36. Typ 1 w modelu (`is_weekend`, inline SQL), typ 2 hook
+  (`get_brand_name`, tworzy UDF przy każdym przebiegu), typ 3 operacja
+  (`generate_base_model`, `more_example_jinja`, ręcznie przez
+  `dbt run-operation`). Kryterium, które faktycznie rozstrzyga między typem 1
+  i 2: czy logikę musi wołać coś **poza** dbt. `is_weekend` i `get_brand_name`
+  są po tej samej stronie tego kryterium, więc niekonsekwencja jest realna
+  (patrz punkt 5).
+- **dbt nie ma podziału na zależności dev i prod** — pytanie 30. Brak
+  odpowiednika `devDependencies`; `dbt deps` instaluje wszystko w każdym
+  środowisku. Obejścia (podmiana `packages.yml` w CI) łamią `sha1_hash` w locku,
+  czyli tracą determinizm z pytania 28. Jedyna realna dźwignia: krótka lista
+  pakietów.
+- **`dbt run` po zmianie `packages.yml` bez `dbt deps` pada na parsowaniu** —
+  pytanie 28. dbt liczy hash `packages.yml` i porównuje z `sha1_hash` w locku.
+  Świadomie **nie** robi dwóch rzeczy: nie leci po cichu na starej,
+  zainstalowanej wersji (tak działał dbt przed erą locka — dryf bez sygnału)
+  ani nie doinstalowuje pakietu w trakcie innej komendy.
+- **`dbt_date` w locku to zależność przechodnia** — pytanie 27.
+  `dbt_packages/dbt_expectations/packages.yml` deklaruje
+  `godatadriven/dbt_date` zakresem `[">=0.9.0", "<1.0.0"]`; `dbt deps`
+  rozwiązuje całe drzewo i zapisuje do locka też zależności pośrednie. Dlatego
+  lock ma 4 pozycje przy 3 w `packages.yml` i dlatego `dbt deps` go nie usunie.
+  Wołanie makr `dbt_date` z własnych modeli wymagałoby dopisania go jawnie do
+  `packages.yml` — inaczej podbicie `dbt_expectations` może je zabrać.
 
 - **Source freshness (`error_after: 24h`) nie blokuje `dbt build`** —
   `dbt source freshness` to osobna komenda, nie krok wewnątrz `dbt build`
@@ -413,3 +594,10 @@ konsumuje, wisi w projekcie bez żadnego `ref()`.
    model, kto może go zmienić — IAM i CODEOWNERS, dwie zupełnie inne warstwy).
    Najmocniejszy kandydat na osobny tekst, bo to nieporozumienie jest
    powszechne i kosztowne w zespołach.
+6. "Twój `dbt parse` w CI przechodzi, a model gubi połowę kolumn" — punkt 14
+   + mechanizm `execute == false` z „Znalezisk mechanicznych". Zielony CI,
+   który nic nie sprawdza, na realnym przykładzie z tego repo (ten sam
+   mechanizm stał za błędem z commita `c93a740`).
+7. "Determinizm zatrzymuje się w połowie stosu" — punkt 12. dbt ma lock na
+   pakiety, Python pod nim nie ma nic. Krótki, techniczny tekst z gotowym
+   rozwiązaniem (`uv pip compile`).
