@@ -7,9 +7,12 @@
 # widać jawnie w IAM (patrz README.md -> Setup -> 1. GCP), a klucz działa wszędzie
 # (CI/CD, inny laptop, kontener) bez ponownego logowania.
 #
-# Wymagane zmienne środowiskowe:
+# Wymagane zmienne środowiskowe (dev - domyślny target):
 #   export BIGQUERY_PROJECT="twoj-projekt-gcp"
 #   export BIGQUERY_KEYFILE="/sciezka/do/klucza/service-account.json"  # POZA folderem repo
+# Tylko przy --target prod (osobna tożsamość, patrz komentarz przy targecie prod):
+#   export BIGQUERY_PROD_PROJECT="twoj-projekt-gcp-prod"
+#   export BIGQUERY_PROD_KEYFILE="/sciezka/do/klucza/service-account-prod.json"
 ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
   target: dev
   outputs:
@@ -32,11 +35,21 @@ ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
       # total_bytes_billed w INFORMATION_SCHEMA.JOBS), nie wartość uniwersalna.
       maximum_bytes_billed: 10737418240   # 10 GiB
 
+    # Prod ma WŁASNE zmienne, celowo bez wartości domyślnej (bez fallbacku na BIGQUERY_KEYFILE).
+    # Gdyby dev i prod dzieliły jedno konto serwisowe, izolację zapewniałaby tylko nazwa datasetu:
+    # przypadkowe --target prod na laptopie albo wyciekły klucz dev = zapis do prod, a w logach
+    # audytowych BigQuery wszystko figuruje pod jednym SA. Przy osobnych zmiennych laptop, który ma
+    # tylko klucz dev, fizycznie nie połączy się z prod (dbt pada na brakującym env_var), a SA dev
+    # może mieć w IAM prawo zapisu wyłącznie do swoich datasetów. dbt renderuje tylko wybrany target,
+    # więc brak zmiennych prod nie przeszkadza w pracy na dev.
+    # Docelowo, poza tym szablonem: prod w osobnym projekcie GCP, w CI/CD Workload Identity
+    # Federation zamiast długożyjącego pliku klucza, a lokalnie oauth + impersonate_service_account
+    # (ślad per osoba w logach, zamiast wspólnego SA).
     prod:
       type: bigquery
       method: service-account
-      keyfile: "{{ env_var('BIGQUERY_KEYFILE') }}"
-      project: "{{ env_var('BIGQUERY_PROJECT') }}"
+      keyfile: "{{ env_var('BIGQUERY_PROD_KEYFILE') }}"
+      project: "{{ env_var('BIGQUERY_PROD_PROJECT') }}"
       dataset: dbt_prod_project
       location: US
       priority: interactive
