@@ -230,6 +230,19 @@ faktycznie muszą wołać konsumenci spoza dbt (BI, analitycy w konsoli).
 
 ## 6. Globalny default `severity: warn` — odwrócony kierunek — pytania 12–15
 
+> **Status: zrobione częściowo (2026-09-24).**
+> - Zrobione: `not_null` na `user_id` i `created_at` w `stg_ecommerce__orders.yml`
+>   na `error` (sprawdzone w manifeście po `dbt parse`); reguła „error dla kluczy
+>   joinów/agregacji, warn dla reguł biznesowych" zapisana przy defaultcie
+>   w `dbt_project.yml`; komentarz o „zaufaniu do staging" w `dim_orders.yml`
+>   doprecyzowany. `accepted_values` na `department` — w punkcie 14.
+> - Pominięte: routing alertów dla `warn`. W repo nie ma orkiestracji ani CI,
+>   do których dało się go podpiąć; `--store-failures` bez monitoringu tabeli
+>   z wynikami tylko tworzy kolejne tabele, których nikt nie czyta. Brak routingu
+>   opisany jako pułapka w komentarzu w `dbt_project.yml`.
+> - Niezweryfikowane: czy dane źródłowe przechodzą nowe testy `error` — wymaga
+>   `dbt build` na żywej bazie.
+
 **Problem:** `tests: ecommerce_analytics: +severity: warn` jako default,
 z jednym jedynym wyjątkiem (`primary_key` na `stg_ecommerce__orders.order_id`
 ma `error`). Reszta testów integralności na kolumnach, które są kluczami
