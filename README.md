@@ -72,7 +72,8 @@ cd dbt-bigquery
 
 python3 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -r requirements.txt  # instaluje dbt-bigquery==1.12.0 (dociąga zgodny dbt-core)
+pip install --require-hashes -r requirements.lock  # dokładne wersje CAŁEGO stosu, nie tylko adaptera
+                                                    # (requirements.txt to wejście dla locka - patrz komentarz w pliku)
 ```
 
 ### 3. Konfiguracja połączenia
