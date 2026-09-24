@@ -397,6 +397,18 @@ konsumuje, wisi w projekcie bez żadnego `ref()`.
 
 ## 11. Governance w `marts/` — dziedziczenie bez kontroli — pytanie 26
 
+> **Status: zrobione (2026-09-24).**
+> - Komentarz przy `+group: sales` w `dbt_project.yml` przepisany: poprzedni
+>   nazywał `group` „mechanizmem kontroli dostępu" — dokładnie to nieporozumienie,
+>   które opisuje ten punkt. Teraz: co egzekwuje (granice `ref()`), ciche
+>   dziedziczenie, `access` celowo nie na folderze.
+> - `.github/CODEOWNERS`: `models/marts/` + pliki konfiguracji → `@pmackowka`,
+>   z komentarzem, że bez branch protection to tylko auto-prośba o review.
+> - `owner.email: sales@my-company.com` → `owner.name: Piotr Maćkówka`
+>   (bez adresu e-mail w publicznym repo). Poprawiony też błędny komentarz, że
+>   grupa „musi być w osobnym pliku".
+> - Niezweryfikowane: działanie CODEOWNERS na GitHubie (wymaga PR-a).
+
 **Problem:** `+group: sales` jest ustawione na folderze `marts/` w
 `dbt_project.yml`, `access: public` tylko w `dim_orders.yml` (per model),
 `owner.email: sales@my-company.com` to placeholder z materiału źródłowego, a w repo nie ma
