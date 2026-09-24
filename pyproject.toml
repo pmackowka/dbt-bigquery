@@ -8,9 +8,6 @@
 #   uv.lock          - co z tego wyszło: CAŁE drzewo (dbt-core, jinja2, protobuf, google-cloud-bigquery...)
 #                      z dokładnymi wersjami i hashami plików, generowany - nigdy nie edytować ręcznie
 #   .python-version  - wersja samego interpretera; uv sync pobiera go sam, jeśli brakuje w systemie
-# Wcześniej była to para requirements.in / requirements.txt (pip-tools). Mechanizm ten sam, ale uv
-# domyka dwie luki tamtego podejścia: pilnuje wersji Pythona i sam tworzy/synchronizuje .venv, więc
-# nie ma kroku "zapomniałem aktywować venv" ani "zainstalowałem na innym Pythonie".
 #
 # Codzienne komendy:
 #   uv sync                  - tworzy/aktualizuje .venv DOKŁADNIE według uv.lock (usuwa też pakiety
