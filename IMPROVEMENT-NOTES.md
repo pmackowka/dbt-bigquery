@@ -185,9 +185,9 @@ w ogóle powinien mieć auto-expiration.
 > Poprawka z tego punktu to jawne założenie — dopisane w komentarzu przy
 > `+materialized: table` w `dbt_project.yml` (warunek rewizji + docelowy wzorzec).
 > Przełączenie staging na `view` pominięte świadomie: przy datasecie demo zysk
-> kosztowy jest pomijalny, a zmiana materializacji dotyka kontraktu
-> `stg_ecommerce__order_items` i czasu budowania `dim_orders` — trade-off, którego
-> w tej skali nie da się obronić.
+> kosztowy jest pomijalny, a staging jako view przerzuca skan źródła na każdy
+> przebieg modeli zależnych i każdy test na staging (testy odpytują widok, czyli
+> źródło). W tej skali zmiana niczego nie poprawia, tylko przesuwa koszt.
 
 **Problem:** `+materialized: table` jako default dla całego projektu,
 uzasadnione komentarzem "dataset jest mały".
