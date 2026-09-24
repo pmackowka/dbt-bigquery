@@ -50,13 +50,19 @@ models:
     +persist_docs:
       relation: true
       columns: true
-    # Tabele dev znikają po 1h (szybki, tani development - nie trzeba pamiętać o ręcznym sprzątaniu
-    # eksperymentalnych przebiegów), prod trzyma dane 7 dni (bufor bezpieczeństwa, nie trwałe
-    # przechowywanie - w realnym projekcie prod miałby to wyłączone albo ustawione znacznie wyżej).
-    +hours_to_expiration: |
-      {% if target.name == 'dev' %} 1
-      {% else %} 168
-      {% endif %}
+    # Tabele dev znikają po 1h - nie trzeba pamiętać o ręcznym sprzątaniu eksperymentalnych
+    # przebiegów. Prod: none, czyli BEZ expiration. Expiration to zegar, który KASUJE tabelę, nie
+    # bufor bezpieczeństwa: przy 7 dniach wystarczy tydzień przerwy w harmonogramie, żeby tabela
+    # prod po cichu zniknęła - dbt run nie ma czego zgłosić (nic nie odpalał), a błąd wychodzi
+    # dopiero u konsumenta jako "table not found".
+    # To default opt-out: dotyczy KAŻDEGO modelu, chyba że model go nadpisze - model incremental
+    # musi to zrobić (patrz stg_ecommerce__events.sql), inaczej w dev prawie zawsze buduje się od
+    # zera i ścieżka MERGE nie jest nigdy testowana. Seedów i snapshotów to nie dotyczy (sekcja
+    # models: obejmuje tylko modele).
+    # Jedna linia wyrażenia, nie blok |: blok dawał w manifeście string ' 1\n' (działał, bo adapter
+    # wkleja wartość jako tekst do SQL), a pojedyncze wyrażenie dbt renderuje natywnie - manifest
+    # ma int 1 w dev i null w prod (sprawdzone w target/manifest.json po dbt parse).
+    +hours_to_expiration: "{{ 1 if target.name == 'dev' else none }}"
 
     marts:
       # Group to mechanizm kontroli dostępu (patrz models/marts/dim_orders.yml -> access), nie
