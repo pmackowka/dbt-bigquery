@@ -519,6 +519,26 @@ portfolio dydaktycznego — wtedy dopisać to w komentarzu.
 
 ## 14. Mart może po cichu zmienić schemat — kontrakt — pytania 33, 34
 
+> **Status: zrobione częściowo (2026-09-24).**
+> - Zrobione: `contract: enforced: true` + `data_type` dla wszystkich 15 kolumn
+>   `dim_orders`. Przy okazji wyszła luka: `order_was_created_on_weekend`
+>   w ogóle nie była opisana w YAML — kontrakt wymaga kompletu, więc dopisana
+>   (z testem `not_null`). Kolejność kolumn w YAML = kolejność w SELECT; przy
+>   kontrakcie dbt buduje tabelę jako `select <kolumny z YAML> from (...)`, więc
+>   problem niestabilnej kolejności `total_sold_*` znika przy okazji.
+>   `accepted_values` na `department` → `error`. Komentarz w `dim_orders.sql`
+>   o schemacie zależnym od danych.
+> - Pominięte: zmiana wzoru `{{ department.lower() }}swear` — zmienia nazwy
+>   kolumn publicznego martu, czyli wymaga nowej wersji modelu; w tej skali to
+>   więcej kodu (druga wersja `dim_orders`) niż pożytku. Opisane w komentarzu.
+> - Sprawdzone offline: `dbt parse` (kontrakt w manifeście, `accepted_values` na
+>   `error` dla v1 i v2) + render Jinja z atrapą działów Men/Women — lista kolumn
+>   identyczna z YAML. **Niesprawdzone i najbardziej ryzykowne w całym wdrożeniu:**
+>   typy danych kontraktu (`INTEGER`/`FLOAT64`/`TIMESTAMP`/`BOOLEAN` przyjęte
+>   z typów kolumn `thelook_ecommerce` i istniejącego kontraktu
+>   `stg_ecommerce__order_items`). Pierwszy `dbt build` na żywej bazie to
+>   pokaże — przy rozjeździe dbt wypisze tabelę różnic typów.
+
 **Problem:** `dim_orders.sql` generuje kolumny miarowe pętlą Jinja po wyniku
 `dbt_utils.get_column_values(...)`, a `dim_orders` ma `access: public` —
 deklarowany kontrakt bez żadnego egzekwowania.
