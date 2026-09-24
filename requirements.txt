@@ -1,1 +1,10 @@
+# Zależności BEZPOŚREDNIE - wejście dla locka, nie plik do instalacji. Instalacja:
+#   pip install --require-hashes -r requirements.lock
+# Po co dwa pliki: ten przypina tylko adapter, a dbt-core i cały stos pod nim (jinja2, agate,
+# google-cloud-bigquery, protobuf...) idą zakresami - pip install -r requirements.txt za kilka
+# miesięcy da inne środowisko bez żadnej zmiany w repo. Widać to na tym repo: manifest z sesji
+# 2026-09-21 zapisał dbt-core 1.12.4, instalacja z tego samego pliku 2026-09-24 dała 1.12.5.
+# Pakiety dbt mają lock (package-lock.yml); requirements.lock domyka tę samą lukę warstwę niżej.
+# Regeneracja po zmianie tego pliku (--universal = jeden lock dla macOS/Linux/Windows):
+#   uv pip compile requirements.txt --universal --python-version 3.11 --generate-hashes -o requirements.lock
 dbt-bigquery==1.12.0
