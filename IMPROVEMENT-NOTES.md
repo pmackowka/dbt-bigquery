@@ -574,6 +574,12 @@ w wolumenie, kolumny zamienią się miejscami przy najbliższym przebiegu, bez
 
 ## 15. Niejawne ograniczenie materializacji w intermediate — pytanie 35
 
+> **Status: zrobione (2026-09-24).** Komentarz w
+> `int_ecommerce__order_items_products.sql` z oboma powodami i regułą dla
+> `ephemeral`. Powód (a) sprawdzony w kodzie pakietu:
+> `dbt_packages/dbt_utils/macros/sql/get_column_values.sql` woła
+> `_is_ephemeral()`, które rzuca błąd „cannot be used with ephemeral models".
+
 **Problem:** `int_ecommerce__order_items_products` **nie może** być
 `ephemeral`, ale nigdzie tego nie napisano.
 
