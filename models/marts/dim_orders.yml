@@ -8,15 +8,19 @@ version: 2
 groups:
   - name: sales
     owner:
-      # 'name' or 'email' is required
-      email: sales@my-company.com
+      # Wymagane 'name' albo 'email'. Poprzednio był tu placeholder sales@my-company.com z materiału
+      # źródłowego - adres, który nigdzie nie prowadzi, jest gorszy niż brak: dbt docs pokazuje go
+      # jako kontakt. owner to czysta metadana (dbt jej nie waliduje i nie wiąże z tożsamością,
+      # która odpala dbt run), więc ma wskazywać realną osobę - tę samą co .github/CODEOWNERS.
+      name: Piotr Maćkówka
 
 models:
   - name: dim_orders
     description: "Tabela zawierająca informacje na poziomie zamówienia"
 
     # Konfiguracja przypisująca model do grupy "sales"
-    # Grupa "sales" musi być wcześniej zdefiniowana w osobnym pliku YML (np. groups.yml)
+    # Grupa "sales" musi być zdefiniowana w bloku groups: - tu na górze tego pliku; osobny groups.yml
+    # to tylko konwencja porządkowa przy wielu grupach, nie wymóg dbt.
     config:
       group: sales
 
