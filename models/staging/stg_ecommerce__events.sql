@@ -31,6 +31,11 @@
 	z tego zakresu, nie całą tabelę - mniej danych przeskanowanych = niższy koszt zapytania
 	(BigQuery rozlicza się od ilości zeskanowanych danych) i szybszy czas odpowiedzi. Bez
 	partycjonowania każde zapytanie skanowałoby całą, rosnącą tabelę.
+	granularity 'day', nie 'hour' - świadoma decyzja, do zostawienia. BigQuery ma dwa limity:
+	10 000 partycji na tabelę i 4 000 partycji modyfikowanych przez jeden job. Przy 'day' to
+	~27 lat w tabeli i ~11 lat historii, które da się zbudować jednym --full-refresh. Przy 'hour'
+	odpowiednio ~416 dni i ~166 dni - tabela rosnąca bezterminowo uderzyłaby w limit, a pełny
+	rebuild padłby już po pół roku historii. Zapytania o eventy i tak filtrują po dniach.
 
 	hours_to_expiration=none - nadpisuje globalny default z dbt_project.yml (1h w dev). Z nim
 	tabela znikałaby godzinę po zbudowaniu, więc kolejny dbt run w dev prawie zawsze widziałby
