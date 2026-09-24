@@ -441,6 +441,19 @@ konsumuje, wisi w projekcie bez żadnego `ref()`.
 
 ## 12. Determinizm zatrzymuje się w połowie stosu — `requirements.txt` — pytanie 29
 
+> **Status: zrobione (2026-09-24).** Wbrew wstępnej ocenie „świadomy trade-off"
+> — koszt wdrożenia to jedna komenda, a dryf dał się pokazać na tym repo:
+> świeża instalacja z `requirements.txt` dała dbt-core 1.12.5, manifest z sesji
+> nauki miał 1.12.4.
+> - `requirements.lock` z `uv pip compile --universal --generate-hashes`
+>   (Python 3.11); `requirements.txt` zostaje jako wejście, z komentarzem o roli
+>   obu plików i komendą regeneracji. README i CLAUDE.md instalują z locka.
+> - Sprawdzone: `pip install --require-hashes -r requirements.lock` w czystym
+>   venv (Python 3.11, macOS) + `dbt parse` na tym środowisku przechodzi.
+> - Niesprawdzone: instalacja na Linuksie/Windows (lock jest `--universal`, ale
+>   nie było jak tego uruchomić). Obraz Dockera przypięty po digeście —
+>   pominięty, bo w repo nie ma kontenera ani CI, które by go używały.
+
 **Problem:** `requirements.txt` przypina dokładnie jedną rzecz —
 `dbt-bigquery==1.12.0` (adapter). `dbt-core` idzie zakresem z adaptera
 (`manifest.json` pokazuje `dbt_version: 1.12.4`, czyli inną liczbę niż
