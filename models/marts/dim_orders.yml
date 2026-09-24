@@ -36,6 +36,22 @@ models:
       # ostrzeżenia - tylko finalny mart ma być stabilnym, publicznym kontraktem.
       access: public
 
+      # Kontrakt: przy każdym buildzie dbt porównuje kolumny (nazwy + typy) z tego pliku z faktycznym
+      # wynikiem SELECT-a i PRZERYWA build przy rozjeździe. Bez niego access: public było deklaracją
+      # bez pokrycia, a ten model ma schemat zależny od DANYCH: kolumny total_sold_* generuje pętla
+      # po dbt_utils.get_column_values(). Nowy dział w źródle = nowa kolumna w publicznym marcie,
+      # bez opisu, bez testu i bez zmiany w kodzie. Z kontraktem taka zmiana zatrzymuje build, dopóki
+      # ktoś świadomie nie dopisze kolumny tutaj.
+      # Efekt uboczny, też pożądany: tabela z kontraktem jest budowana jako "select <kolumny w
+      # kolejności z YAML> from (sql modelu)", więc kolejność kolumn przestaje zależeć od tego, który
+      # dział ma więcej wierszy (get_column_values sortuje po count(*) desc). Dla SELECT * w BI to
+      # stabilny układ tabeli.
+      # Koszt: data_type dla każdej kolumny i dopisywanie YAML przy każdej zmianie SELECT-a.
+      contract:
+        enforced: true
+
+    # Kolejność kolumn poniżej = kolejność kolumn w tabeli (patrz kontrakt wyżej) - trzymana
+    # zgodnie z kolejnością w dim_orders.sql.
     columns:
 
     # Kolumny ze stg_ecommerce__orders - nie testujemy ich tu ponownie (poza kluczem głównym),
@@ -46,6 +62,7 @@ models:
     # zatrzymuje builda, więc dim_orders i tak by się zbudował. Stąd error na kluczach, na których
     # ten model stoi (user_id, created_at, order_id w stg_ecommerce__orders.yml).
       - name: order_id
+        data_type: INTEGER
         tests:
           # Generic test zdefiniowany w tests/generic/test_primary_key.sql - model i nazwa
           # kolumny są przekazywane automatycznie przez dbt (patrz definicja testu), nie trzeba
@@ -61,29 +78,43 @@ models:
                 severity: error
 
       - name: order_created_at
+        data_type: TIMESTAMP
         description: "When the order was created"
 
-      - name: order_returned_at
-        description: "When the order was returned"
-
-      - name: order_delivered_at
-        description: "When the order was delivered"
+      - name: order_was_created_on_weekend
+        data_type: BOOLEAN
+        description: "Whether the order was created on Saturday or Sunday"
+        tests:
+          # Nowa logika policzona w TYM modelu (makro is_weekend), nie przepisana ze staging -
+          # więc test tutaj, zgodnie z podziałem opisanym niżej przy agregatach.
+          - not_null
 
       - name: order_shipped_at
+        data_type: TIMESTAMP
         description: "When the order was shipped"
 
+      - name: order_delivered_at
+        data_type: TIMESTAMP
+        description: "When the order was delivered"
+
+      - name: order_returned_at
+        data_type: TIMESTAMP
+        description: "When the order was returned"
+
       - name: order_status
+        data_type: STRING
         description: "{{ doc('status') }}"
 
       - name: num_items_ordered
+        data_type: INTEGER
         description: "Number of items in the order"
-
 
     # Kolumny z int_ecommerce__order_items_products (agregaty policzone w TYM modelu, nie
     # przepisane 1:1 z warstwy staging) - w odróżnieniu od kolumn wyżej, te TRZEBA przetestować
     # tutaj: to nowa logika (SUM, agregacja po department), której nie sprawdza żaden wcześniejszy
     # model - błąd w liczeniu sumy ujawniłby się dopiero tu, nie w staging.
       - name: total_sale_price
+        data_type: FLOAT64
         description: "Sum of item_sale_price for the whole order"
         tests:
           - not_null
@@ -92,6 +123,7 @@ models:
                 min_value: 0
 
       - name: total_product_cost
+        data_type: FLOAT64
         description: "Sum of product_cost for the whole order"
         tests:
           - not_null
@@ -100,6 +132,7 @@ models:
                 min_value: 0
 
       - name: total_profit
+        data_type: FLOAT64
         description: "Sum of (item_sale_price - product_cost) for the whole order"
         tests:
           - not_null
@@ -108,6 +141,7 @@ models:
                 min_value: 0
 
       - name: total_discount
+        data_type: FLOAT64
         description: "Sum of (product_retail_price - item_sale_price) for the whole order"
         tests:
           - not_null
@@ -116,6 +150,7 @@ models:
                 min_value: 0
 
       - name: total_sold_menswear
+        data_type: FLOAT64
         description: "Sum of item_sale_price for items in the Menswear department for this order"
         tests:
           - not_null
@@ -124,6 +159,7 @@ models:
                 min_value: 0
 
       - name: total_sold_womenswear
+        data_type: FLOAT64
         description: "Sum of item_sale_price for items in the Womenswear department for this order"
         tests:
           - not_null
@@ -133,6 +169,7 @@ models:
 
     # Column from int_ecommerce__first_order_created
       - name: days_since_first_order
+        data_type: INTEGER
         description: "How many days there were between a user's first order and this one"
         tests:
           - not_null
