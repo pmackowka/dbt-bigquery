@@ -206,6 +206,13 @@ się opłaca (marty, duże/często odpytywane źródła).
 
 ## 5. UDF przez hook `on-run-start` — nadmiarowa architektura — pytanie 11
 
+> **Status: pominięte, dopisany komentarz (2026-09-24).** Poprawka dotyczy
+> „realnego projektu", a tu hook to jedyny przykład makra typu 2 (patrz
+> „Znaleziska mechaniczne" — taksonomia makr). Zamiana na makro inline usunęłaby
+> z repo demonstrację mechanizmu, a koszt (jeden `CREATE OR REPLACE FUNCTION`
+> na przebieg) jest pomijalny. Koszt architektury i kryterium wyboru (konsumenci
+> spoza dbt) opisane w komentarzu przy `on-run-start` w `dbt_project.yml`.
+
 **Problem:** `get_brand_name()` — jednolinijkowy `REGEXP_EXTRACT` — jest
 zaimplementowany jako trwały UDF w BigQuery, tworzony przez hook
 `on-run-start` przy **każdym** dbt run/test/seed/snapshot/build, zamiast jako
