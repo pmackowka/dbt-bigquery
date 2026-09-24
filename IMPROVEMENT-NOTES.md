@@ -170,7 +170,7 @@ zaimplementowany jako trwały UDF w BigQuery, tworzony przez hook
 `on-run-start` przy **każdym** dbt run/test/seed/snapshot/build, zamiast jako
 makro Jinja rozwijane inline w SQL-u modelu.
 
-**Dlaczego ma znaczenie:** to ilustracja mechanizmu hooków z kursu, nie
+**Dlaczego ma znaczenie:** to ilustracja mechanizmu hooków z materiału źródłowego, nie
 decyzja projektowa — dodaje job przy każdej komendzie i obiekt w bazie
 niewidoczny w lineage dbt, bez realnego uzasadnienia (logika użyta w jednym
 miejscu).
@@ -297,7 +297,7 @@ konsumuje, wisi w projekcie bez żadnego `ref()`.
 
 **Problem:** `+group: sales` jest ustawione na folderze `marts/` w
 `dbt_project.yml`, `access: public` tylko w `dim_orders.yml` (per model),
-`owner.email: sales@my-company.com` to placeholder z kursu, a w repo nie ma
+`owner.email: sales@my-company.com` to placeholder z materiału źródłowego, a w repo nie ma
 `CODEOWNERS`.
 
 **Dlaczego ma znaczenie:**
@@ -321,7 +321,7 @@ konsumuje, wisi w projekcie bez żadnego `ref()`.
   nie w dbt. W repo portfolio wystarczy mapowanie na siebie; wartość jest
   w pokazaniu, że rozumiesz tę granicę.
 - Placeholder `sales@my-company.com` zamienić na realny kontakt albo oznaczyć
-  w komentarzu jako przykład z kursu.
+  w komentarzu jako przykład z materiału źródłowego.
 
 ---
 
