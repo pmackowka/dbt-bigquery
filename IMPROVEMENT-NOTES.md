@@ -2,9 +2,9 @@
 
 > Powstało w trakcie interaktywnej sesji nauki (`/ucz`) nad konfiguracją projektu
 > `dbt-bigquery`. Aktualizowane co 5–10 pytań sesji, nie po każdym. Ostatnia
-> aktualizacja: pytanie 23/24, sesja z 2026-09-21/22.
+> aktualizacja: pytanie 26/27, sesja z 2026-09-21/24.
 
-Ten plik ma dwie odrębne role. Sekcje 1–11 poniżej to wspólny surowiec dla obu —
+Ten plik ma dwie odrębne role. Sekcje 1–13 poniżej to wspólny surowiec dla obu —
 różni się tylko to, co się z nim robi dalej.
 
 ## Rola 1 — materiał na artykuł (repo Personal-Page)
@@ -22,7 +22,8 @@ trybu rozkazującego użytego w środku.
 
 ```text
 Napisz artykuł do bloga na podstawie IMPROVEMENT-NOTES.md z repo dbt-bigquery
-(sekcje 1–9 + „Do artykułu — kandydaci na osobne sekcje" na końcu pliku).
+(sekcje z poprawkami 1–11 + „Do artykułu — kandydaci na osobne sekcje" na
+końcu pliku).
 Materiał: konkretne pułapki konfiguracji dbt na BigQuery, wykryte w trakcie
 sesji nauki na realnym (choć małym) projekcie — mechanizm i konsekwencja,
 nie ogólna teoria. Zastosuj skill `nowy-artykul` (pełne zasady stylu: zero
@@ -35,28 +36,38 @@ w repo Personal-Page (źródło prawdy, nie esencja z globalnego CLAUDE.md).
 
 ## Rola 2 — gotowy prompt dla sesji wdrożeniowej
 
-Punkty 1–9 to kontekst do wklejenia w nowej sesji Claude Code, która ma
+Punkty 1–11 to kontekst do wklejenia w nowej sesji Claude Code, która ma
 wdrożyć te poprawki w kodzie. Gotowy prompt (dane, nie instrukcja — patrz
 uwaga wyżej):
 
 ```text
-Przeczytaj IMPROVEMENT-NOTES.md w tym repo, sekcje 1–9 — to lista poprawek
-do konfiguracji dbt wypracowana w sesji /ucz. Wdróż je w kodzie, zmiana po
-zmianie, w plikach wskazanych przy każdym punkcie (profiles.yml.example,
-dbt_project.yml, models/staging/stg_ecommerce__events.sql,
-models/staging/stg_ecommerce__orders.yml i inne). Do każdej zmiany dodaj
-komentarz DLACZEGO, nie CO — zgodnie z konwencją tego repo (wzór: istniejące
-komentarze w dbt_project.yml, patrz też commit 31ba768). Sekcji 10
-("sprawdzone i uznane za poprawne") nie ruszaj — te fragmenty zostają bez
-zmian, z uzasadnieniem dlaczego. Sekcja 11 to wiedza kontekstowa, nie wymaga
-zmian w kodzie. Po wdrożeniu każdego punktu zaktualizuj jego status w tym
-pliku (zrobione / pominięte + uzasadnienie pominięcia).
+Przeczytaj IMPROVEMENT-NOTES.md w tym repo. Sekcje z nagłówkiem "Problem:"
+(dziś 1–11) to lista poprawek do konfiguracji dbt wypracowana w sesji /ucz.
+Wdróż je w kodzie, zmiana po zmianie, w plikach wskazanych przy każdym punkcie
+(profiles.yml.example, dbt_project.yml,
+models/staging/stg_ecommerce__events.sql,
+models/staging/stg_ecommerce__orders.yml, seeds/seeds.yml i inne). Do każdej
+zmiany dodaj komentarz DLACZEGO, nie CO — zgodnie z konwencją tego repo (wzór:
+istniejące komentarze w dbt_project.yml, patrz też commit 31ba768). Sekcji
+"Rzeczy sprawdzone i uznane za poprawne" NIE ruszaj — te fragmenty zostają bez
+zmian; jeśli dopisujesz tam cokolwiek, to tylko komentarz z uzasadnieniem,
+dlaczego zostaje. Sekcja "Znaleziska mechaniczne" to wiedza kontekstowa, nie
+wymaga zmian w kodzie. Po wdrożeniu każdego punktu zaktualizuj jego status w
+tym pliku (zrobione / pominięte + uzasadnienie pominięcia).
 ```
 
 ## Jak czytać tę listę
 
-Każdy punkt: **problem → dlaczego to ma znaczenie → poprawka**. Numeracja odpowiada
-numerom pytań w sesji `/ucz`, dla odtworzenia kontekstu rozumowania.
+Każdy punkt: **problem → dlaczego to ma znaczenie → poprawka**. Przy każdym
+nagłówku numery pytań z sesji `/ucz`, dla odtworzenia kontekstu rozumowania.
+
+Trzy grupy sekcji, rozpoznawalne po nagłówku, nie po numerze (numery przesuwają
+się przy kolejnych aktualizacjach pliku):
+
+- **Poprawki do wdrożenia** — sekcje z polem **Problem:** (dziś 1–11).
+- **„Rzeczy sprawdzone i uznane za poprawne"** — świadome decyzje, których nie
+  zmieniać, z uzasadnieniem dlaczego.
+- **„Znaleziska mechaniczne"** — wiedza kontekstowa, zero zmian w kodzie.
 
 ---
 
@@ -256,7 +267,65 @@ wierszy (bo strona `DBT_INTERNAL_DEST` jest przycięta predykatem) i wstawi
 
 ---
 
-## 10. Rzeczy sprawdzone i **uznane za poprawne** (nie zmieniać)
+## 10. Seed bez udokumentowanego sensu biznesowego — pytanie 24
+
+**Problem:** `seeds/seed_distribution_centers_new.csv` ma nazwę niemal
+identyczną ze źródłem `thelook_ecommerce.distribution_centers`, na którym stoi
+snapshot. Opis w `seeds.yml` mówi wyłącznie o mechanizmie („przykład ładowania
+danych do hurtowni przez plik CSV zamiast `source()`"), nie o tym, **czym te
+dane są**.
+
+**Dlaczego ma znaczenie:** w grze są trzy niezależne tabele — publiczne źródło,
+snapshot SCD2 na nim (`..._snapshots_project.snapshot__distribution_centers`)
+i seed (`seed_distribution_centers_new`) — a zbliżone nazwy sugerują, że to
+wersje tego samego. Treść CSV to `id` 11 i 12 (Miami FL, Denver CO), czyli
+centra, **których w źródle nie ma**. To realny wzorzec: dane, które jeszcze nie
+płyną żadnym pipeline'em, wpuszczane ręcznie do hurtowni. Bez jednego zdania
+o tym w opisie kolejna osoba (albo ja po pół roku) uzna seed za duplikat albo
+próbę nadpisania źródła.
+
+**Poprawka:** rozszerzyć `description:` seeda w `seeds.yml` o sens biznesowy
+(„dwa nowe centra dystrybucji, `id` 11–12, nieobecne w publicznym źródle —
+przykład danych ładowanych ręcznie, dopóki nie trafią do systemu
+źródłowego"). Opcjonalnie: model intermediate robiący `UNION ALL` źródła
+i seeda, żeby pokazać, **po co** seed w ogóle istnieje — dziś nic go nie
+konsumuje, wisi w projekcie bez żadnego `ref()`.
+
+---
+
+## 11. Governance w `marts/` — dziedziczenie bez kontroli — pytanie 26
+
+**Problem:** `+group: sales` jest ustawione na folderze `marts/` w
+`dbt_project.yml`, `access: public` tylko w `dim_orders.yml` (per model),
+`owner.email: sales@my-company.com` to placeholder z kursu, a w repo nie ma
+`CODEOWNERS`.
+
+**Dlaczego ma znaczenie:**
+- Nowy model wrzucony do `models/marts/` **po cichu dziedziczy** `group: sales`.
+  Żadnej walidacji, że ktokolwiek z tej grupy go widział — to zwykłe
+  dziedziczenie configu, nie bramka.
+- **Asymetria:** folder ustawia tylko `group`, **nie** `access`. Nowy model
+  dostanie więc domyślne `protected`, a nie `public` jak `dim_orders` — łatwo
+  założyć odwrotnie i zdziwić się przy pierwszym `ref()` z innego projektu.
+- `owner.email` nic nie egzekwuje. To metadana renderowana w `dbt docs`, bez
+  żadnego związku z tożsamością, która faktycznie odpala `dbt run` (to SA
+  z `profiles.yml`) ani z tym, kto może zmienić kod.
+
+**Poprawka:**
+- Komentarz w `dbt_project.yml` przy `+group: sales`: że jest dziedziczone
+  po cichu przez każdy nowy model w folderze i że `access` dziedziczony **nie
+  jest** (świadoma decyzja — `public` ma być jawnym wyborem per model, nie
+  domyślnym).
+- Dodać `CODEOWNERS` mapujący `models/marts/` na właściciela — realna kontrola
+  „kto może zmienić ten model" żyje w gicie (CODEOWNERS + branch protection),
+  nie w dbt. W repo portfolio wystarczy mapowanie na siebie; wartość jest
+  w pokazaniu, że rozumiesz tę granicę.
+- Placeholder `sales@my-company.com` zamienić na realny kontakt albo oznaczyć
+  w komentarzu jako przykład z kursu.
+
+---
+
+## 12. Rzeczy sprawdzone i **uznane za poprawne** (nie zmieniać)
 
 - **`partition_by` po dniu, nie po godzinie** (`stg_ecommerce__events`) —
   poprawna decyzja: limit liczby partycji na tabelę w BigQuery. Przy `day`
@@ -280,7 +349,7 @@ wierszy (bo strona `DBT_INTERNAL_DEST` jest przycięta predykatem) i wstawi
 
 ---
 
-## 11. Znaleziska mechaniczne, do zapamiętania (nie wymagają zmiany kodu)
+## 13. Znaleziska mechaniczne, do zapamiętania (nie wymagają zmiany kodu)
 
 - **Source freshness (`error_after: 24h`) nie blokuje `dbt build`** —
   `dbt source freshness` to osobna komenda, nie krok wewnątrz `dbt build`
@@ -294,6 +363,35 @@ wierszy (bo strona `DBT_INTERNAL_DEST` jest przycięta predykatem) i wstawi
   (on-demand) albo kupowany z góry (capacity/reservations). W modelu
   on-demand rachunek liczy bajty zeskanowane przez job, nie liczbę wątków ani
   slotów.
+- **Governance w dbt (`group`, `access`, `owner`) to nie kontrola dostępu** —
+  pytanie 26. `group` + `access` egzekwują jedną rzecz: **które modele mogą
+  się do siebie odwołać przez `ref()`**, sprawdzane **przy kompilacji**
+  (`private` = tylko ta sama grupa, `protected` = grupa/projekt, `public` =
+  dowolny projekt). `owner.email` to czysty tekst dokumentacyjny, bez
+  walidacji. Nic z tego nie ogranicza, **kto** może odpalić `dbt run` —
+  to robi IAM w GCP (tożsamość z `profiles.yml`) i uprawnienia w
+  CI/orkiestracji. „Kto może zmienić kod modelu" to z kolei warstwa gita
+  (CODEOWNERS + branch protection).
+- **`persist_docs` — realny koszt to czas, nie pieniądze** — pytanie 25.
+  Po zbudowaniu każdego modelu dbt wykonuje **dodatkowe** wywołanie ustawiające
+  opis relacji i opisy kolumn w BigQuery. To operacja na metadanych, więc nie
+  skanuje bajtów (rachunek ≈ 0), ale dokłada round-trip do API **per model**,
+  przy każdym przebiegu — koszt czasowy rośnie liniowo z liczbą modeli.
+  Modele `ephemeral` (`int_ecommerce__first_order_created`) są z tego wyłączone
+  w całości: nie ma fizycznego obiektu, więc dbt nie robi nawet pustego
+  wywołania.
+- **`{{ doc() }}` jest DRY tylko w repo, nie w BigQuery** — ten sam blok doc
+  (`doc('status')`) jest referencjonowany w `stg_ecommerce__orders.status`
+  i `dim_orders.order_status`. `persist_docs` **fizycznie kopiuje** ten tekst
+  do metadanych obu tabel osobno (metadane kolumny żyją per tabela, nie są
+  odwołaniem). Zmiana tekstu w pliku `.md` wymaga ponownego `dbt run` obu
+  modeli, żeby opisy w BigQuery przestały być rozjechane z repo.
+- **Seed, snapshot i source to trzy różne byty** — pytanie 24. Rozpoznanie po
+  kodzie, nie po nazwie pliku: snapshot ma `FROM {{ source(...) }}` w `.sql`,
+  seed **nie ma żadnego pliku `.sql`** (dane idą wprost z CSV, opisane tylko
+  w `seeds.yml`), source to zewnętrzna tabela tylko do odczytu. Seed ładuje
+  wyłącznie `dbt seed`, snapshot wyłącznie `dbt snapshot` — `dbt run` pomija
+  oba.
 
 ---
 
@@ -306,6 +404,12 @@ wierszy (bo strona `DBT_INTERNAL_DEST` jest przycięta predykatem) i wstawi
    — punkt 3, z konkretnym przykładem `hours_to_expiration`.
 3. "`severity: warn` to nie 'miękki test' — to brak testu" — punkt 6, różnica
    między "reguła zdefiniowana" a "reguła egzekwowana", z tym samym motywem
-   przy source freshness (punkt 11).
+   przy source freshness (sekcja „Znaleziska mechaniczne").
 4. "Koszt `MERGE` w dbt incremental rośnie z historią tabeli, nie z nową
    porcją danych" — punkty 7 i 9 razem, z gotchą `incremental_predicates`.
+5. "`group` i `access` w dbt to nie kontrola dostępu" — punkt 11 + mechanizm
+   z „Znalezisk mechanicznych": co dbt faktycznie egzekwuje (granice `ref()`
+   przy kompilacji), a co ludzie zakładają, że egzekwuje (kto może odpalić
+   model, kto może go zmienić — IAM i CODEOWNERS, dwie zupełnie inne warstwy).
+   Najmocniejszy kandydat na osobny tekst, bo to nieporozumienie jest
+   powszechne i kosztowne w zespołach.
