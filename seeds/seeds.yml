@@ -6,7 +6,17 @@ version: 2
 
 seeds:
   - name: seed_distribution_centers_new
-    description: "Przykład ładowania danych do hurtowni przez plik CSV zamiast source() z bazy"
+    # Opis mówi, CZYM są dane, nie tylko jakim mechanizmem trafiają do bazy. W projekcie są trzy
+    # niezależne tabele o prawie tej samej nazwie: publiczne źródło distribution_centers, snapshot
+    # SCD2 na tym źródle i ten seed. Bez zdania o treści seed wygląda jak duplikat źródła albo
+    # próba jego nadpisania - a to dwa centra (id 11-12), których w źródle NIE MA.
+    # Seed nie ma dziś żadnego konsumenta (brak ref() w modelach) - to świadomie izolowany przykład
+    # mechanizmu. W realnym projekcie dopiero model łączący źródło z seedem (UNION ALL) nadałby mu
+    # sens.
+    description: >
+      Dwa nowe centra dystrybucji (id 11-12: Miami FL, Denver CO), nieobecne w publicznym źródle
+      thelook_ecommerce.distribution_centers. Przykład danych ładowanych do hurtowni ręcznie z pliku
+      CSV, dopóki nie zaczną płynąć z systemu źródłowego - nie kopia ani nadpisanie źródła.
     # Test na poziomie całego seeda (nie kolumny) - pilnuje, żeby plik CSV faktycznie miał 2
     # wiersze. Po co: seed to plik trzymany w repo, ktoś mógłby go przypadkiem nadpisać albo
     # dodać/usunąć wiersz przy edycji - ten test złapałby taką pomyłkę przy najbliższym dbt test.
