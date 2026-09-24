@@ -13,14 +13,24 @@ models:
               config:
                 severity: error
 
+      # error, nie domyślny warn: user_id i created_at to klucze dalszej logiki - user_id joinuje
+      # int_ecommerce__first_order_created do dim_orders, created_at liczy MIN() pierwszego
+      # zamówienia i days_since_first_order. warn nie blokuje dbt build, więc dim_orders
+      # zbudowałby się dalej na NULL-ach w kluczu - mart "ufałby testom w staging", które niczego
+      # nie zatrzymują. Reguła: error dla kolumn, na których stoją joiny/agregacje, warn dla
+      # reguł biznesowych (statusy, kolejność timestampów niżej).
       - name: user_id
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: error
 
       - name: created_at
         description: "When the order was created"
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: error
 
       - name: returned_at
         description: "When the order was returned"
