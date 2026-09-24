@@ -24,10 +24,16 @@
 	z tego zakresu, nie całą tabelę - mniej danych przeskanowanych = niższy koszt zapytania
 	(BigQuery rozlicza się od ilości zeskanowanych danych) i szybszy czas odpowiedzi. Bez
 	partycjonowania każde zapytanie skanowałoby całą, rosnącą tabelę.
+
+	hours_to_expiration=none - nadpisuje globalny default z dbt_project.yml (1h w dev). Z nim
+	tabela znikałaby godzinę po zbudowaniu, więc kolejny dbt run w dev prawie zawsze widziałby
+	is_incremental() = false i budował od zera - ścieżka filtra i MERGE byłaby testowana dopiero
+	w prod. Model incremental żyje z tego, że poprzedni stan tabeli ISTNIEJE.
 #}
 {{
 	config(
 		materialized='incremental',
+		hours_to_expiration=none,
 		unique_key='event_id',
 		on_schema_change='sync_all_columns',
 		partition_by={
