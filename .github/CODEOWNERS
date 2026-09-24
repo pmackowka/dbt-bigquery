@@ -1,0 +1,13 @@
+# Kto zatwierdza zmiany w kodzie - to jest ta warstwa kontroli, której dbt NIE daje. group/access
+# w dbt pilnują tylko, kto może ref()-ować model; owner w groups: to tekst do dokumentacji.
+# CODEOWNERS sam niczego nie blokuje: GitHub automatycznie prosi właściciela o review, a wymusza je
+# dopiero branch protection z "Require review from Code Owners". W repo z jednym autorem to mapowanie
+# jest demonstracją granicy odpowiedzialności, nie realną bramką (autor PR nie zatwierdza sam siebie).
+
+# Marty to publiczny kontrakt (dim_orders ma access: public) - każda zmiana kolumn dotyka konsumentów.
+/models/marts/  @pmackowka
+
+# Konfiguracja, która zmienia zachowanie całego projektu (defaulty, hooki, pakiety, profil).
+/dbt_project.yml       @pmackowka
+/packages.yml          @pmackowka
+/profiles.yml.example  @pmackowka
