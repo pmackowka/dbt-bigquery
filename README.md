@@ -72,8 +72,8 @@ cd dbt-bigquery
 
 python3 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install --require-hashes -r requirements.lock  # dokładne wersje CAŁEGO stosu, nie tylko adaptera
-                                                    # (requirements.txt to wejście dla locka - patrz komentarz w pliku)
+pip install -r requirements.txt  # lock: dokładne wersje CAŁEGO stosu z hashami, nie tylko adaptera
+                                  # (requirements.in to wejście dla locka - patrz komentarz w pliku)
 ```
 
 ### 3. Konfiguracja połączenia
