@@ -292,6 +292,13 @@ WHERE created_at > TIMESTAMP_SUB((SELECT MAX(created_at) FROM {{ this }}), INTER
 
 ## 8. `on_schema_change='sync_all_columns'` — ryzyko cichej utraty danych — pytanie 17
 
+> **Status: zrobione (2026-09-24).** `append_new_columns` zamiast
+> `sync_all_columns`; komentarz opisuje faktyczny trigger (edycja SELECT-a
+> modelu, nie zmiana źródła) i dlaczego nie `fail` (wymuszony `--full-refresh`
+> dużej tabeli przy każdej nowej kolumnie). Sprawdzone: wartość w manifeście po
+> `dbt parse`. Niezweryfikowane: zachowanie przy realnej zmianie kolumn na
+> BigQuery.
+
 **Problem:** komentarz w kodzie myli "zmianę w źródle" ze "zmianą w SELECT
 modelu" — to drugie faktycznie uruchamia mechanizm (dbt porównuje kolumny
 wyniku modelu z istniejącą tabelą przy edycji `.sql`, nie przy zmianie
