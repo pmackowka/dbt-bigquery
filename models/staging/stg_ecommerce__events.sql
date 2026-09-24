@@ -30,6 +30,9 @@
 	is_incremental() = false i budował od zera - ścieżka filtra i MERGE byłaby testowana dopiero
 	w prod. Model incremental żyje z tego, że poprzedni stan tabeli ISTNIEJE.
 #}
+{#- Ile dni wstecz od MAX(created_at) w tabeli doczytujemy ze źródła - patrz filtr na dole pliku. -#}
+{%- set source_lookback_days = 3 -%}
+
 {{
 	config(
 		materialized='incremental',
@@ -74,8 +77,13 @@ FROM source
 {% if is_incremental() %}
 
 -- Filtr aktywny TYLKO przy przebiegach po pierwszym (is_incremental() jest false przy pierwszym
--- dbt run i przy --full-refresh) - dolicza wyłącznie eventy nowsze niż to, co już jest w tabeli,
--- zamiast przeliczać całą historię od zera.
-WHERE created_at > (SELECT MAX(created_at) FROM {{ this }})
+-- dbt run i przy --full-refresh) - dolicza eventy od ostatniego stanu tabeli, zamiast przeliczać
+-- całą historię od zera.
+-- Okno wsteczne (source_lookback_days), a nie samo "> MAX(created_at)": event, który dotarł do
+-- źródła z opóźnieniem, ma poprawny, STARY created_at - mniejszy niż MAX w tabeli. Filtr bez
+-- marginesu pominąłby go na zawsze, bez błędu i przy zielonym buildzie. Ten sam wzorzec co przy
+-- eksporcie GA4 do BigQuery, gdzie dane dociągają się do ~72h. Nakładające się dni nie tworzą
+-- duplikatów, bo unique_key='event_id' zamienia je w UPDATE w MERGE.
+WHERE created_at > TIMESTAMP_SUB((SELECT MAX(created_at) FROM {{ this }}), INTERVAL {{ source_lookback_days }} DAY)
 
 {% endif %}
