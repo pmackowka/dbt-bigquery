@@ -1,6 +1,6 @@
 # dbt na BigQuery — analityka e-commerce
 
-Projekt dbt Core zbudowany w trakcie kursu Udemy *Mastering dbt (Data Build Tool)* i rozszerzony o własne dodatki.
+Projekt dbt Core zbudowany na bazie projektu szkoleniowego i rozszerzony o własne dodatki.
 Źródło danych: `bigquery-public-data.thelook_ecommerce` (publiczny dataset BigQuery).
 
 ## Struktura
@@ -17,7 +17,7 @@ macros/           # makra Jinja, w tym UDF-y tworzone przez hook on-run-start
 analyses/         # zapytania eksploracyjne (dbt compile, bez materializacji)
 ```
 
-## Co jest tu ponad materiał kursu
+## Co jest tu ponad materiał źródłowy
 
 - **Dynamiczna lista działów** w `dim_orders` przez `dbt_utils.get_column_values()` zamiast twardo zakodowanej listy.
 - **`hours_to_expiration` zależne od targetu** (`dev` vs inne) w `dbt_project.yml`.
@@ -33,33 +33,33 @@ Autoryzacja przez **konto serwisowe** (service account) — nie przez lokalny OA
 
 ```bash
 # Nowy projekt GCP (pomiń, jeśli używasz istniejącego)
-gcloud projects create TWOJ_PROJECT_ID --name="dbt BigQuery course"
+gcloud projects create TWOJ_PROJECT_ID --name="dbt BigQuery"
 gcloud config set project TWOJ_PROJECT_ID
 
 # BigQuery API musi być włączone w projekcie, zanim dbt się z nim połączy
 gcloud services enable bigquery.googleapis.com
 
 # Konto serwisowe dedykowane pod dbt (nie Twoje osobiste konto Google)
-gcloud iam service-accounts create dbt-bigquery-course \
-  --display-name="dbt BigQuery course"
+gcloud iam service-accounts create dbt-bigquery \
+  --display-name="dbt BigQuery"
 
 # Rola dataEditor: tworzenie/nadpisywanie/kasowanie tabel i widoków w datasetach projektu
 # (dbt run/build robi to non-stop — bez tej roli każdy build padnie na permission denied)
 gcloud projects add-iam-policy-binding TWOJ_PROJECT_ID \
-  --member="serviceAccount:dbt-bigquery-course@TWOJ_PROJECT_ID.iam.gserviceaccount.com" \
+  --member="serviceAccount:dbt-bigquery@TWOJ_PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/bigquery.dataEditor"
 
 # Rola jobUser: uruchamianie zapytań (query jobs) rozliczanych na ten projekt
 # (dataEditor sam w sobie NIE pozwala odpalać zapytań - to świadomie rozdzielone uprawnienie)
 gcloud projects add-iam-policy-binding TWOJ_PROJECT_ID \
-  --member="serviceAccount:dbt-bigquery-course@TWOJ_PROJECT_ID.iam.gserviceaccount.com" \
+  --member="serviceAccount:dbt-bigquery@TWOJ_PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/bigquery.jobUser"
 
 # Klucz JSON - POZA folderem tego repo (np. ~/.gcp/), żeby żaden przyszły `git add -A`
 # nie mógł go złapać niezależnie od .gitignore
 mkdir -p ~/.gcp
-gcloud iam service-accounts keys create ~/.gcp/dbt-bigquery-course.json \
-  --iam-account=dbt-bigquery-course@TWOJ_PROJECT_ID.iam.gserviceaccount.com
+gcloud iam service-accounts keys create ~/.gcp/dbt-bigquery.json \
+  --iam-account=dbt-bigquery@TWOJ_PROJECT_ID.iam.gserviceaccount.com
 ```
 
 Dataset źródłowy `bigquery-public-data.thelook_ecommerce` jest publiczny — Google nadaje odczyt każdej uwierzytelnionej tożsamości GCP, więc powyższe role nic tam nie zmieniają i nic dodatkowego nie trzeba nadawać. Zapytania są tanie (mały dataset, w granicach darmowego 1 TB/miesiąc), ale rozliczane na `TWOJ_PROJECT_ID`, nie na `bigquery-public-data`.
@@ -80,7 +80,7 @@ pip install -r requirements.txt  # instaluje dbt-bigquery==1.12.0 (dociąga zgod
 ```bash
 cp profiles.yml.example profiles.yml   # profiles.yml jest w .gitignore - nigdy go nie commituj
 export BIGQUERY_PROJECT="TWOJ_PROJECT_ID"
-export BIGQUERY_KEYFILE="$HOME/.gcp/dbt-bigquery-course.json"
+export BIGQUERY_KEYFILE="$HOME/.gcp/dbt-bigquery.json"
 
 dbt deps --profiles-dir .    # instaluje pakiety z packages.yml do dbt_packages/
 dbt debug --profiles-dir .   # weryfikuje połączenie PRZED pierwszym run - najczęstszy błąd
@@ -99,6 +99,6 @@ Kolejność ma znaczenie: `seed` przed `build`, bo `snapshots/snapshot__distribu
 
 ## Notatki (prywatne, tylko dla mnie)
 
-Pełne notatki merytoryczne z kursu (setup, warstwy modeli, testy, kontrakty, snapshoty, Jinja/makra) są w moim prywatnym repo wiedzy: [dbt-Kompletny-Przewodnik-BigQuery.md](https://github.com/pmackowka/knowledge-base/blob/main/wiki/Software/dbt/dbt-Kompletny-Przewodnik-BigQuery.md).
+Pełne notatki merytoryczne z pracy nad tym projektem (setup, warstwy modeli, testy, kontrakty, snapshoty, Jinja/makra) są w moim prywatnym repo wiedzy: [dbt-Kompletny-Przewodnik-BigQuery.md](https://github.com/pmackowka/knowledge-base/blob/main/wiki/Software/dbt/dbt-Kompletny-Przewodnik-BigQuery.md).
 
 Ten link **działa tylko na moim koncie GitHub** — repo jest prywatne i takie zostanie. Dla każdego innego zwraca 404, to celowe, nie błąd.
