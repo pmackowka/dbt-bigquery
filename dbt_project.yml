@@ -33,6 +33,11 @@ clean-targets:
 # Na początku każdego procesu dbt zostanie uruchomione makro get_brand_name()
 # (zdefiniowane w macros/macro_get_brand_name.sql). Tworzy ono funkcję użytkownika (UDF)
 # w schemacie w BigQuery.
+# Zostaje celowo jako przykład mechanizmu hooka, nie jako wzorzec. Koszt tej architektury: dodatkowy
+# job przy KAŻDEJ komendzie (run/test/seed/snapshot/build) i obiekt w bazie, którego nie widać
+# w lineage dbt. Za jednolinijkowy REGEXP_EXTRACT użyty w jednym modelu to za dużo - w realnym
+# projekcie byłoby to makro rozwijane inline (jak is_weekend w dim_orders.sql). Trwały UDF ma sens
+# dopiero wtedy, gdy tę samą logikę muszą wołać konsumenci SPOZA dbt (BI, analityk w konsoli).
 on-run-start:
   - "{{ get_brand_name() }}"  # Automatyczne uruchomienie makra na starcie
 
