@@ -1,7 +1,7 @@
 # Szablon połączenia z BigQuery.
 # Skopiuj do profiles.yml (plik jest w .gitignore) albo do ~/.dbt/profiles.yml.
 #
-# method: service-account (nie oauth) - świadomy wybór, nie domyślne ustawienie kursu.
+# method: service-account (nie oauth) - świadomy wybór, nie domyślne ustawienie materiału źródłowego.
 # OAuth (gcloud auth application-default login) loguje osobę i działa tylko na maszynie,
 # na której się go odpalił. Konto serwisowe to tożsamość samego projektu: uprawnienia
 # widać jawnie w IAM (patrz README.md -> Setup -> 1. GCP), a klucz działa wszędzie
@@ -24,6 +24,13 @@ ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
       threads: 64
       job_execution_timeout_seconds: 300
       job_retries: 1
+      # Twardy limit kosztu pojedynczego zapytania: BigQuery on-demand rozlicza ZESKANOWANE BAJTY,
+      # nie czas - job_execution_timeout_seconds wyżej nie chroni przed zapytaniem, które w 20 s
+      # przeczyta kilka TB. Zapytanie, które przekroczyłoby limit, BigQuery odrzuca bez naliczenia
+      # opłaty - błąd kosztuje 0 zł, a nie cały rachunek. 10 GiB w dev to wartość startowa z zapasem
+      # dla małego datasetu demo; próg do dostrojenia pod realny rozmiar danych (np. po
+      # total_bytes_billed w INFORMATION_SCHEMA.JOBS), nie wartość uniwersalna.
+      maximum_bytes_billed: 10737418240   # 10 GiB
 
     prod:
       type: bigquery
@@ -36,3 +43,7 @@ ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
       threads: 64
       job_execution_timeout_seconds: 300
       job_retries: 1
+      # Wyżej niż w dev, bo prod przebudowuje pełne tabele (w tym --full-refresh modelu
+      # incremental), ale nadal skończony - limit ma złapać błąd (np. zgubiony filtr partycji),
+      # a nie blokować normalny przebieg.
+      maximum_bytes_billed: 107374182400  # 100 GiB
