@@ -92,4 +92,9 @@ tests:
     # jakości danych ma być WIDOCZNY, ale pipeline ma polecieć dalej. error ustawiany świadomie
     # punktowo tam, gdzie naruszenie jest krytyczne (np. primary_key w stg_ecommerce__orders.yml -
     # złamany klucz główny psuje każdy kolejny join, więc ma zatrzymać build, nie tylko ostrzec).
+    # Pułapka tego defaultu: warn NIE blokuje modeli zależnych - dbt build zbuduje dim_orders nawet
+    # na złamanym kluczu joina. Dlatego error dostaje każda kolumna, na której stoi join albo
+    # agregacja (klucze w staging, accepted_values na department sterujące kolumnami dim_orders),
+    # a warn zostaje dla reguł czysto biznesowych. warn jest też "widoczny" tylko w logu przebiegu:
+    # bez routingu (Slack/PagerDuty albo --store-failures + monitoring tabeli) nikt go nie zobaczy.
     +severity: warn
