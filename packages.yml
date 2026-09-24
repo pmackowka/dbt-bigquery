@@ -1,7 +1,14 @@
 # Zależności zewnętrzne (pakiety dbt) - dbt deps instaluje je do dbt_packages/ (gitignore) na
 # podstawie tego pliku i zapisuje dokładne wersje w package-lock.yml. dbt_utils to ogólne makra
 # (m.in. get_column_values, generate_surrogate_key), dbt_expectations to testy inspirowane Great
-# Expectations, codegen generuje szkielety modeli/YAML (patrz macros/macro_generate_base_table.sql).
+# Expectations.
+#
+# Bez dbt-labs/codegen, choć repo korzysta z generate_base_model: projekt ma własną, zmodyfikowaną
+# kopię tego makra (macros/macro_generate_base_table.sql), a makro projektu ma pierwszeństwo przed
+# makrem pakietu o tej samej nazwie. Pakiet był więc instalowany w każdym środowisku, a
+# dbt run-operation generate_base_model i tak odpalało kopię lokalną - packages.yml sugerował coś,
+# co nie działało. dbt nie ma podziału na zależności dev/prod (brak odpowiednika devDependencies),
+# więc jedyna dźwignia to krótka lista pakietów: każdy tutaj = realny konsument w kodzie.
 packages:
   - package: dbt-labs/dbt_utils
     version: 1.4.1
@@ -9,6 +16,3 @@ packages:
   # calogica/dbt_expectations jest zarchiwizowany - metaplane/dbt_expectations to aktywny fork
   - package: metaplane/dbt_expectations
     version: 0.10.10
-
-  - package: dbt-labs/codegen
-    version: 0.14.1
