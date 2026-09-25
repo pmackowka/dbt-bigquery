@@ -17,14 +17,6 @@ macros/           # makra Jinja, w tym UDF-y tworzone przez hook on-run-start
 analyses/         # zapytania eksploracyjne (dbt compile, bez materializacji)
 ```
 
-## Co jest tu ponad materiał źródłowy
-
-- **Dynamiczna lista działów** w `dim_orders` przez `dbt_utils.get_column_values()` zamiast twardo zakodowanej listy.
-- **`hours_to_expiration` zależne od targetu** (`dev` vs inne) w `dbt_project.yml`.
-- **Governance modeli**: grupa `sales`, `access: public`, kontrakt (`contract: enforced`) na `stg_ecommerce__order_items`.
-- **Wersjonowanie modeli** (`stg_ecommerce__products`, wersje `v1`/`v2` z aliasem na niewersjonowaną nazwę tabeli).
-- **Własny generic test** `primary_key` (`not_null` + `unique` w jednym).
-
 ## Setup
 
 Autoryzacja przez **konto serwisowe** (service account) — nie przez lokalny OAuth (`gcloud auth application-default login`). OAuth loguje CIEBIE i działa tylko na maszynie, na której go odpaliłeś; konto serwisowe to tożsamość samego projektu, przenośna (CI/CD, inny laptop, kontener) i taka, której uprawnienia widać jawnie w IAM, a nie w czyjejś sesji logowania.
