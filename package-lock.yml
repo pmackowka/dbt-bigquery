@@ -1,13 +1,8 @@
-# Plik generowany automatycznie przez `dbt deps` - zapisuje DOKŁADNE, przetestowane wersje
-# pakietów z packages.yml (packages.yml pozwala na zakresy typu ">=0.8.0,<0.9.0", ten plik
-# zawsze wskazuje jedną konkretną wersję). Commitowany celowo (jak package-lock.json w npm) -
-# dzięki temu `dbt deps` na innym komputerze instaluje IDENTYCZNE wersje, a nie cokolwiek
-# najnowszego, co akurat wypadło z zakresu w packages.yml.
-#
-# `dbt deps` NIE nadpisuje tego pliku, dopóki packages.yml się nie zmieni (sha1_hash poniżej to
-# hash zawartości packages.yml - dbt porównuje go przy każdym uruchomieniu i regeneruje ten plik
-# tylko przy niezgodności) - ten komentarz przetrwa zwykłe `dbt deps`, zniknie dopiero przy
-# faktycznej zmianie wersji pakietu.
+# Generowany przez dbt deps: jedna konkretna wersja każdego pakietu (także zależności pośrednich,
+# np. dbt_date), nawet gdy packages.yml dopuszcza zakres. Commitowany jak package-lock.json w npm -
+# dbt deps na innej maszynie instaluje identyczne wersje.
+# sha1_hash to hash listy pakietów z packages.yml (nie tekstu pliku - komentarze się nie liczą).
+# dbt regeneruje ten plik tylko przy niezgodności hasha, więc ten komentarz przetrwa zwykłe dbt deps.
 packages:
   - name: dbt_utils
     package: dbt-labs/dbt_utils
