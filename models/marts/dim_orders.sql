@@ -1,16 +1,11 @@
 {# Mart: finalna tabela zamówień - agreguje int_ecommerce__order_items_products i int_ecommerce__first_order_created #}
 {#
-	Lista działów przychodzi z DANYCH (zapytanie do bazy przy kompilacji), więc schemat tego
-	modelu może się zmienić bez zmiany w kodzie. Dwie blokady w projekcie: accepted_values na
-	department (severity error, stg_ecommerce__products.yml) i kontrakt w dim_orders.yml.
-	Nazwa kolumny {{ department.lower() }}swear działa tylko dlatego, że 'men'/'women' + 'swear'
-	przypadkiem dają sensowne słowo - nowy dział 'Kids' dałby total_sold_kidsswear. Czystsza forma
-	(total_sold_{{ department | lower | replace(' ', '_') }}) zmienia nazwy istniejących kolumn
-	publicznego martu, czyli jest zmianą łamiącą - wymaga nowej wersji modelu (jak v1/v2 przy
-	stg_ecommerce__products), dlatego na razie zostaje stary wzór.
-	dbt parse NIE sprawdza tej pętli: przy parsowaniu execute = false, get_column_values zwraca
-	pustą listę i model "kompiluje się" bez żadnej kolumny total_sold_*. Realna weryfikacja
-	wymaga dbt compile/build z połączeniem.
+	Lista działów przychodzi z DANYCH (zapytanie przy kompilacji), więc schemat może się zmienić
+	bez zmiany w kodzie. Blokują to accepted_values na department (error) i kontrakt w dim_orders.yml.
+	Wzór ...swear działa, bo 'men'/'women' + 'swear' daje słowo - 'Kids' dałby total_sold_kidsswear.
+	Czystsza nazwa zmieniłaby kolumny publicznego martu, czyli wymaga nowej wersji modelu.
+	Zielony dbt parse nic tu nie dowodzi: przy parsowaniu execute = false, get_column_values zwraca
+	pustą listę i model "kompiluje się" bez kolumn total_sold_*. Sprawdza to dopiero dbt build.
 #}
 {%- set departments = dbt_utils.get_column_values(table=ref('int_ecommerce__order_items_products'), column='product_department') -%}
 
