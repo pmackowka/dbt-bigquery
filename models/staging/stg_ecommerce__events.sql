@@ -1,63 +1,34 @@
 {#
 	Staging: eventy użytkowników (thelook_ecommerce.events).
 
-	Jedyny model incremental w tym projekcie (reszta to table) - świadomy wybór, nie domyślne
-	ustawienie: events to tabela zdarzeń (kliknięcia, wizyty), która w realnym sklepie rośnie
-	milionami wierszy dziennie. Materializacja 'table' przeliczałaby CAŁĄ historię od zera przy
-	każdym dbt run - drogo (skanowanie BigQuery liczone od ilości danych) i wolno. Incremental
-	dokłada tylko nowe wiersze od ostatniego przebiegu.
+	Jedyny model incremental w projekcie: tabela zdarzeń w realnym sklepie rośnie milionami wierszy
+	dziennie, a 'table' przeliczałaby całą historię przy każdym run - drogo (BigQuery liczy
+	zeskanowane bajty) i wolno. Incremental dokłada tylko nowe wiersze.
 #}
 {#
-	unique_key='event_id' - klucz, po którym dbt rozpoznaje ten sam event przy kolejnych
-	przebiegach (potrzebne przy strategii merge/upsert - bez tego incremental tylko dokleja
-	wiersze, nie potrafi rozpoznać duplikatu, gdyby ten sam event trafił do źródła dwa razy).
+	unique_key='event_id' - po nim MERGE rozpoznaje ten sam event w kolejnych przebiegach; bez klucza
+	incremental tylko dokleja wiersze i nie wykryje duplikatu.
 
-	on_schema_change='append_new_columns' - co się dzieje, gdy kolumny WYNIKU MODELU (SELECT w tym
-	pliku) przestają się zgadzać z istniejącą tabelą. Trigger to edycja tego .sql, nie zmiana
-	w źródle: SELECT wymienia kolumny z nazwy, więc nowa kolumna w źródle niczego tu nie zmienia,
-	dopóki ktoś nie dopisze jej do SELECT-a.
-	Dlaczego nie sync_all_columns (poprzednia wartość): synchronizuje w obie strony, czyli usunięcie
-	kolumny z SELECT-a wykonuje na tabeli ciche DROP COLUMN - razem z całą historią tej kolumny, bez
-	ostrzeżenia. W tabeli incremental historii nie odbudowuje zwykły run, tylko --full-refresh
-	(tu akurat możliwy, bo źródło trzyma całą historię - ale to cecha publicznego datasetu, nie
-	gwarancja). append_new_columns tylko DOKŁADA kolumny: usunięta z SELECT-a zostaje w tabeli
-	z NULL-ami w nowych wierszach, a jej skasowanie jest osobną, świadomą decyzją.
-	Ostrzejsza alternatywa - 'fail' (użyta w siostrzanym repo dbt-snowflake dla fct_reviews) -
-	zatrzymuje build przy każdej rozbieżności i wymusza --full-refresh; przy dużej tabeli eventów
-	to drogi rebuild za każdym razem, gdy model zyskuje kolumnę.
+	on_schema_change='append_new_columns' - reaguje na zmianę kolumn WYNIKU MODELU (edycja SELECT-a),
+	nie źródła. Nie sync_all_columns, bo ta usunięcie kolumny z SELECT-a zamienia w ciche DROP COLUMN
+	razem z historią, którą odbuduje tylko --full-refresh. append tylko dokłada kolumny - kasowanie
+	zostaje świadomą decyzją. Nie 'fail', bo wymusza drogi --full-refresh przy każdej nowej kolumnie.
 
-	partition_by - dzieli fizyczną tabelę w BigQuery na kawałki po dniu (created_at). Po co:
-	zapytanie filtrujące po dacie (np. "eventy z ostatniego tygodnia") skanuje TYLKO partycje
-	z tego zakresu, nie całą tabelę - mniej danych przeskanowanych = niższy koszt zapytania
-	(BigQuery rozlicza się od ilości zeskanowanych danych) i szybszy czas odpowiedzi. Bez
-	partycjonowania każde zapytanie skanowałoby całą, rosnącą tabelę.
-	granularity 'day', nie 'hour' - świadoma decyzja, do zostawienia. BigQuery ma dwa limity:
-	10 000 partycji na tabelę i 4 000 partycji modyfikowanych przez jeden job. Przy 'day' to
-	~27 lat w tabeli i ~11 lat historii, które da się zbudować jednym --full-refresh. Przy 'hour'
-	odpowiednio ~416 dni i ~166 dni - tabela rosnąca bezterminowo uderzyłaby w limit, a pełny
-	rebuild padłby już po pół roku historii.
+	partition_by po dniu - zapytanie z filtrem po dacie skanuje tylko pasujące partycje, nie całą
+	tabelę. 'day', nie 'hour': limity BigQuery to 10 000 partycji na tabelę i 4 000 na jeden job.
+	Dla 'day' to ~27 lat w tabeli i ~11 lat w jednym --full-refresh, dla 'hour' ~416 i ~166 dni.
 
-	hours_to_expiration=none - nadpisuje globalny default z dbt_project.yml (1h w dev). Z nim
-	tabela znikałaby godzinę po zbudowaniu, więc kolejny dbt run w dev prawie zawsze widziałby
-	is_incremental() = false i budował od zera - ścieżka filtra i MERGE byłaby testowana dopiero
-	w prod. Model incremental żyje z tego, że poprzedni stan tabeli ISTNIEJE.
+	hours_to_expiration=none - nadpisuje 1h z dbt_project.yml. Z nim tabela w dev znikałaby przed
+	kolejnym run, is_incremental() byłoby prawie zawsze false i ścieżka MERGE nie byłaby testowana.
 
-	incremental_predicates - dokleja warunek do ON w generowanym MERGE (AND z dopasowaniem po
-	event_id). Bez niego ON nie zawiera nic o kolumnie partycjonującej, więc BigQuery nie może
-	wykluczyć żadnej partycji strony docelowej: każdy MERGE skanuje CAŁĄ historię tabeli, a koszt
-	rośnie z wiekiem tabeli, nie z rozmiarem nowej porcji. Predykat na created_at ze stałą
-	względem CURRENT_TIMESTAMP() pozwala przyciąć partycje docelowe do ostatnich dni.
-	Pułapka: przycięta strona docelowa to też przycięte dopasowania. Wiersz ze źródła, którego
-	istniejąca kopia leży POZA oknem predykatu, nie znajdzie pary i zostanie wstawiony drugi raz
-	(duplikat event_id), zamiast zrobić UPDATE. Dlatego okno MERGE musi pokryć całe okno filtra
-	źródła. Te dwa okna mają różne punkty odniesienia: filtr liczy od MAX(created_at) w tabeli,
-	predykat od teraz. Warunek bezpieczeństwa to więc:
-	    merge_lookback_days >= source_lookback_days + dni od ostatniego udanego przebiegu.
-	Te same wartości w obu miejscach (np. 3 i 3) wystarczą tylko wtedy, gdy model biegnie non-stop;
-	jedna przerwa w harmonogramie i MERGE zaczyna wstawiać duplikaty. 7 vs 3 toleruje ok. 4 dni
-	przestoju; po dłuższym - dbt build --full-refresh -s stg_ecommerce__events. Siatka
-	bezpieczeństwa: unique na event_id z severity error (stg_ecommerce__events.yml) zatrzyma
-	build, jeśli duplikat jednak powstanie.
+	incremental_predicates - dokleja do ON w MERGE warunek na kolumnie partycjonującej. Bez niego
+	BigQuery skanuje CAŁĄ historię tabeli docelowej przy każdym MERGE, więc koszt rośnie z wiekiem
+	tabeli, nie z nową porcją.
+	Pułapka: wiersz ze źródła, którego kopia leży POZA oknem predykatu, nie znajdzie pary i wejdzie
+	drugi raz (duplikat zamiast UPDATE). Filtr źródła liczy od MAX(created_at), predykat od teraz,
+	więc warunek to: merge_lookback_days >= source_lookback_days + dni od ostatniego przebiegu.
+	7 vs 3 toleruje ~4 dni przestoju; dłużej - --full-refresh. Siatka: unique na event_id (error)
+	w stg_ecommerce__events.yml zatrzyma build, jeśli duplikat jednak powstanie.
 #}
 {#- Ile dni wstecz od MAX(created_at) w tabeli doczytujemy ze źródła - patrz filtr na dole pliku. -#}
 {%- set source_lookback_days = 3 -%}
@@ -101,23 +72,17 @@ SELECT
 	traffic_source,
 	uri AS web_link,
 	event_type,
-	{# Wywołanie UDF-a get_brand_name() (macros/macro_get_brand_name.sql), który dbt tworzy w
-	   schemacie targetu automatycznie na starcie KAŻDEGO przebiegu (hook on-run-start w
-	   dbt_project.yml) - stąd odwołanie przez {{ target.schema }}, nie przez nazwę modelu/ref(). #}
+	{# UDF tworzony przez hook on-run-start w schemacie targetu - stąd {{ target.schema }}, nie ref(). #}
 	{{ target.schema }}.get_brand_name(uri) AS brand_name
 
 FROM source
 
 {% if is_incremental() %}
 
--- Filtr aktywny TYLKO przy przebiegach po pierwszym (is_incremental() jest false przy pierwszym
--- dbt run i przy --full-refresh) - dolicza eventy od ostatniego stanu tabeli, zamiast przeliczać
--- całą historię od zera.
--- Okno wsteczne (source_lookback_days), a nie samo "> MAX(created_at)": event, który dotarł do
--- źródła z opóźnieniem, ma poprawny, STARY created_at - mniejszy niż MAX w tabeli. Filtr bez
--- marginesu pominąłby go na zawsze, bez błędu i przy zielonym buildzie. Ten sam wzorzec co przy
--- eksporcie GA4 do BigQuery, gdzie dane dociągają się do ~72h. Nakładające się dni nie tworzą
--- duplikatów, bo unique_key='event_id' zamienia je w UPDATE w MERGE.
+-- Aktywne tylko po pierwszym przebiegu (nie przy pierwszym run ani --full-refresh).
+-- Okno wsteczne zamiast samego "> MAX(created_at)": spóźniony event ma poprawny, STARY created_at
+-- i bez marginesu przepadłby na zawsze, przy zielonym buildzie (jak eksport GA4, dociągający dane
+-- do ~72h). Nakładające się dni nie dają duplikatów - MERGE po event_id robi z nich UPDATE.
 WHERE created_at > TIMESTAMP_SUB((SELECT MAX(created_at) FROM {{ this }}), INTERVAL {{ source_lookback_days }} DAY)
 
 {% endif %}
