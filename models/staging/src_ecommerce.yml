@@ -1,7 +1,5 @@
-# Definicja source() - surowych tabel źródłowych (bigquery-public-data.thelook_ecommerce), na
-# których bazują wszystkie modele stg_ecommerce__*. source() (w odróżnieniu od ref()) odwołuje się
-# do tabeli spoza projektu dbt; freshness/loaded_at_field w config pozwalają sprawdzić przez
-# `dbt source freshness`, czy dane w events nie są przestarzałe.
+# Surowe tabele źródłowe (bigquery-public-data.thelook_ecommerce) dla modeli stg_ecommerce__*.
+# source() wskazuje tabelę spoza projektu dbt, w odróżnieniu od ref().
 version: 2
 
 sources:
@@ -9,13 +7,11 @@ sources:
     database: bigquery-public-data
     tables:
       - name: events
-        # Freshness tylko tutaj, celowo nie na pozostałych tabelach - nie "dopisywać wszędzie".
-        # events.created_at to jedyna kolumna, która realnie przybliża moment dopływu danych
-        # (strumień zdarzeń). W orders/order_items created_at to czas zdarzenia BIZNESOWEGO, nie
-        # load time - dzień bez zamówień dałby fałszywy alarm "dane nieświeże", choć pipeline działa.
-        # Przy tabelach wymiarów (products, distribution_centers) brak zmian przez dni to stan
-        # normalny, nie awaria. Uwaga: dbt build nie odpala freshness - to osobna komenda
-        # (dbt source freshness), którą orkiestracja musi wywołać jako bramkę PRZED buildem.
+        # Freshness tylko tu, celowo: events.created_at przybliża moment dopływu danych. W orders
+        # to czas zdarzenia BIZNESOWEGO - dzień bez zamówień dałby fałszywy alarm; w wymiarach brak
+        # zmian przez dni jest normą.
+        # Deklaracja, nie bramka: dbt build freshness NIE sprawdza. error_after coś zatrzyma dopiero,
+        # gdy orkiestracja (Airflow/CI) odpali dbt source freshness jako osobny krok przed buildem.
         config:
           freshness:
             warn_after: {count: 12, period: hour}
