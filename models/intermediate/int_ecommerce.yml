@@ -1,13 +1,7 @@
-# Ten plik YAML dokumentuje dwa modele DBT i przypisuje im testy jakości danych:
-# - Pierwszy model `int_ecommerce__order_items_products` zawiera szczegółowe dane o produktach i zamówieniach.
-# - Drugi model `int_ecommerce__first_order_created` używa kotwicy YAML (&user_id), by uniknąć duplikacji.
-#
-# Wykorzystano:
-# - testy `not_null` i `unique` do walidacji poprawności danych,
-# - testy `expression_is_true` z `dbt_utils` do weryfikacji wyrażeń matematycznych,
-# - kotwice YAML (& oraz *) do ponownego wykorzystania tej samej definicji (DRY).
-#
-# Plik pomaga utrzymać jakość danych i jest kluczowy w procesie testowania modeli w DBT.
+# Dokumentacja i testy dwóch modeli intermediate. Kotwica YAML (&user_id / *user_id) przenosi tę samą
+# definicję kolumny (opis + test) do drugiego modelu - DRY na poziomie parsera YAML, dbt nic o niej nie wie.
+# Test na int_ecommerce__first_order_created działa mimo materializacji ephemeral: dbt wkleja logikę
+# modelu jako CTE do SQL-a testu, tak jak do każdego innego węzła, który go ref()-uje.
 
 version: 2  # Wersja schematu pliku YAML dla dokumentacji DBT
 
