@@ -1,14 +1,7 @@
-# Zależności zewnętrzne (pakiety dbt) - dbt deps instaluje je do dbt_packages/ (gitignore) na
-# podstawie tego pliku i zapisuje dokładne wersje w package-lock.yml. dbt_utils to ogólne makra
-# (m.in. get_column_values, generate_surrogate_key), dbt_expectations to testy inspirowane Great
-# Expectations.
-#
-# Bez dbt-labs/codegen, choć repo korzysta z generate_base_model: projekt ma własną, zmodyfikowaną
-# kopię tego makra (macros/macro_generate_base_table.sql), a makro projektu ma pierwszeństwo przed
-# makrem pakietu o tej samej nazwie. Pakiet był więc instalowany w każdym środowisku, a
-# dbt run-operation generate_base_model i tak odpalało kopię lokalną - packages.yml sugerował coś,
-# co nie działało. dbt nie ma podziału na zależności dev/prod (brak odpowiednika devDependencies),
-# więc jedyna dźwignia to krótka lista pakietów: każdy tutaj = realny konsument w kodzie.
+# Pakiety dbt - dbt deps instaluje je do dbt_packages/ i zapisuje dokładne wersje w package-lock.yml.
+# dbt_utils: ogólne makra (m.in. get_column_values), dbt_expectations: dodatkowe testy.
+# Bez dbt-labs/codegen: projekt ma własną kopię generate_base_model, która i tak wygrywa z makrem
+# pakietu. dbt nie dzieli zależności na dev/prod, więc zasada: każdy pakiet tutaj ma konsumenta w kodzie.
 packages:
   - package: dbt-labs/dbt_utils
     version: 1.4.1
