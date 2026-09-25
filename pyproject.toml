@@ -1,37 +1,28 @@
-# Definicja środowiska Pythona dla tego projektu dbt - JEDYNE miejsce, w którym ręcznie wpisuje się
-# zależności. dbt Core to zwykła aplikacja w Pythonie, więc jego środowisko wymaga tej samej
-# dyscypliny co każdy inny kod: deklaracja (ten plik) -> rozwiązanie drzewa zależności (uv lock)
-# -> odtworzenie środowiska 1:1 (uv sync).
+# Środowisko Pythona dla dbt - JEDYNE miejsce, gdzie ręcznie wpisuje się zależności.
+# Cykl: deklaracja (ten plik) -> rozwiązanie drzewa (uv lock) -> odtworzenie 1:1 (uv sync).
 #
 # Trzy pliki, trzy role:
 #   pyproject.toml   - co wybieram świadomie (zależności bezpośrednie), pisany ręcznie
-#   uv.lock          - co z tego wyszło: CAŁE drzewo (dbt-core, jinja2, protobuf, google-cloud-bigquery...)
-#                      z dokładnymi wersjami i hashami plików, generowany - nigdy nie edytować ręcznie
-#   .python-version  - wersja samego interpretera; uv sync pobiera go sam, jeśli brakuje w systemie
+#   uv.lock          - CAŁE drzewo (dbt-core, protobuf...) z wersjami i hashami; generowany, nie edytować
+#   .python-version  - wersja interpretera; uv sync pobiera go sam, jeśli brakuje w systemie
 #
 # Codzienne komendy:
-#   uv sync                  - tworzy/aktualizuje .venv DOKŁADNIE według uv.lock (usuwa też pakiety
-#                              spoza locka - środowisko nie "puchnie" od ręcznych pip install)
-#   uv run dbt build ...     - odpala dbt w .venv bez ręcznej aktywacji
-#   uv add <pakiet>          - dopisuje zależność tutaj I od razu przelicza uv.lock
-#   uv lock --upgrade-package dbt-bigquery  - świadome podbicie wersji (zmiana widoczna w diffie locka)
-#   uv sync --locked         - wariant dla CI: pada, jeśli uv.lock nie zgadza się z tym plikiem,
-#                              zamiast po cichu go przeliczać
+#   uv sync                  - .venv dokładnie według uv.lock (usuwa pakiety spoza locka)
+#   uv run dbt build ...     - dbt w .venv bez ręcznej aktywacji
+#   uv add <pakiet>          - dopisuje zależność tutaj i przelicza uv.lock
+#   uv lock --upgrade-package dbt-bigquery  - świadome podbicie wersji
+#   uv sync --locked         - dla CI: pada, gdy uv.lock nie zgadza się z tym plikiem
 [project]
 name = "ecommerce-analytics"
 version = "1.0.0"
 description = "dbt Core na BigQuery - analityka e-commerce na thelook_ecommerce"
-# Dolna granica zgodna z .python-version. uv.lock rozwiązuje zależności dla KAŻDEGO Pythona z tego
-# zakresu i każdego systemu (macOS/Linux/Windows) naraz - jeden lock dla wszystkich maszyn.
+# uv.lock rozwiązuje zależności dla każdego Pythona z tego zakresu i każdego systemu naraz.
 requires-python = ">=3.11"
 dependencies = [
-    # Przypięty tylko adapter - dbt-core i reszta stosu wynikają z niego i są przypięte w uv.lock.
-    # Wersja == (nie >=): podbicie adaptera ma być świadomą zmianą w tym pliku, nie efektem
-    # ubocznym przeliczenia locka.
+    # Tylko adapter - reszta stosu jest przypięta w uv.lock. ==, bo podbicie ma być świadomą zmianą.
     "dbt-bigquery==1.12.0",
 ]
 
 [tool.uv]
-# To nie jest pakiet Pythona do zbudowania i opublikowania, tylko środowisko do uruchamiania dbt.
-# package = false: uv sync instaluje same zależności, bez prób budowania tego projektu jako paczki.
+# To środowisko do uruchamiania dbt, nie paczka do publikacji - uv instaluje same zależności.
 package = false
