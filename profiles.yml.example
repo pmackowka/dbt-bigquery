@@ -1,11 +1,10 @@
 # Szablon połączenia z BigQuery.
 # Skopiuj do profiles.yml (plik jest w .gitignore) albo do ~/.dbt/profiles.yml.
 #
-# method: service-account (nie oauth) - świadomy wybór, nie domyślne ustawienie materiału źródłowego.
-# OAuth (gcloud auth application-default login) loguje osobę i działa tylko na maszynie,
-# na której się go odpalił. Konto serwisowe to tożsamość samego projektu: uprawnienia
-# widać jawnie w IAM (patrz README.md -> Setup -> 1. GCP), a klucz działa wszędzie
-# (CI/CD, inny laptop, kontener) bez ponownego logowania.
+# method: service-account, nie oauth: OAuth loguje osobę i działa tylko na jednej maszynie, konto
+# serwisowe to tożsamość projektu z uprawnieniami jawnie w IAM, działająca też w CI i kontenerze.
+# To TU, a nie w dbt (group/access), rozstrzyga się, kto może budować modele: dbt robi w BigQuery
+# dokładnie to, na co IAM pozwala temu kontu.
 #
 # Wymagane zmienne środowiskowe (dev - domyślny target):
 #   export BIGQUERY_PROJECT="twoj-projekt-gcp"
@@ -24,35 +23,26 @@ ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
       dataset: dbt_dev_project
       location: US
       priority: interactive
-      # threads = ile jobów dbt wysyła do BigQuery JEDNOCZEŚNIE (limit po stronie klienta), nie
-      # moc obliczeniowa. BigQuery on-demand nie ma warehouse'u do przeciążenia jak Snowflake:
-      # sloty przydziela per job, a rachunek liczy bajty - więc threads nie zmienia kosztu, tylko
-      # czas ścienny i to, ile jobów naraz zajmuje wspólną pulę projektu. Szerokość DAG-u tego
-      # projektu to kilka modeli bez wzajemnych zależności (kilkanaście węzłów z testami), więc 64
-      # nigdy nie byłoby wykorzystane, a skopiowane do większego projektu dawało mylny sygnał.
-      # 8 z zapasem pokrywa najszerszy poziom DAG-u; realną wartość wyznacza się empirycznie:
-      # dbt build --threads N dla kilku N i porównanie execution_time w target/run_results.json.
+      # threads = ile jobów dbt wysyła JEDNOCZEŚNIE (limit klienta), nie moc obliczeniowa. BigQuery
+      # on-demand przydziela sloty per job i liczy bajty, więc threads zmienia tylko czas ścienny,
+      # nie koszt. Najszerszy poziom DAG-u to kilka modeli - 64 nigdy nie byłoby wykorzystane,
+      # 8 wystarcza z zapasem. Realną wartość mierzy się: dbt build --threads N + run_results.json.
       threads: 8
       job_execution_timeout_seconds: 300
       job_retries: 1
-      # Twardy limit kosztu pojedynczego zapytania: BigQuery on-demand rozlicza ZESKANOWANE BAJTY,
-      # nie czas - job_execution_timeout_seconds wyżej nie chroni przed zapytaniem, które w 20 s
-      # przeczyta kilka TB. Zapytanie, które przekroczyłoby limit, BigQuery odrzuca bez naliczenia
-      # opłaty - błąd kosztuje 0 zł, a nie cały rachunek. 10 GiB w dev to wartość startowa z zapasem
-      # dla małego datasetu demo; próg do dostrojenia pod realny rozmiar danych (np. po
-      # total_bytes_billed w INFORMATION_SCHEMA.JOBS), nie wartość uniwersalna.
+      # Twardy limit kosztu zapytania. BigQuery liczy zeskanowane BAJTY, nie czas - timeout wyżej
+      # nie zatrzyma zapytania, które w 20 s przeczyta kilka TB. Po przekroczeniu limitu zapytanie
+      # pada bez opłaty. 10 GiB to wartość startowa dla datasetu demo; stroić po total_bytes_billed
+      # w INFORMATION_SCHEMA.JOBS.
       maximum_bytes_billed: 10737418240   # 10 GiB
 
-    # Prod ma WŁASNE zmienne, celowo bez wartości domyślnej (bez fallbacku na BIGQUERY_KEYFILE).
-    # Gdyby dev i prod dzieliły jedno konto serwisowe, izolację zapewniałaby tylko nazwa datasetu:
-    # przypadkowe --target prod na laptopie albo wyciekły klucz dev = zapis do prod, a w logach
-    # audytowych BigQuery wszystko figuruje pod jednym SA. Przy osobnych zmiennych laptop, który ma
-    # tylko klucz dev, fizycznie nie połączy się z prod (dbt pada na brakującym env_var), a SA dev
-    # może mieć w IAM prawo zapisu wyłącznie do swoich datasetów. dbt renderuje tylko wybrany target,
-    # więc brak zmiennych prod nie przeszkadza w pracy na dev.
-    # Docelowo, poza tym szablonem: prod w osobnym projekcie GCP, w CI/CD Workload Identity
-    # Federation zamiast długożyjącego pliku klucza, a lokalnie oauth + impersonate_service_account
-    # (ślad per osoba w logach, zamiast wspólnego SA).
+    # Prod ma WŁASNE zmienne, bez fallbacku na zmienne dev. Przy wspólnym koncie dev/prod izolacja
+    # to tylko nazwa datasetu: przypadkowe --target prod albo wyciek klucza dev = zapis do prod,
+    # a w logach audytowych jedno konto dla wszystkich. Laptop z samym kluczem dev nie połączy się
+    # z prod (brakujący env_var), a SA dev może mieć w IAM zapis tylko do swoich datasetów. dbt
+    # renderuje tylko wybrany target, więc brak zmiennych prod nie przeszkadza w pracy na dev.
+    # Docelowo: prod w osobnym projekcie GCP, w CI Workload Identity Federation zamiast pliku
+    # klucza, lokalnie oauth + impersonate_service_account (ślad per osoba).
     prod:
       type: bigquery
       method: service-account
@@ -64,7 +54,5 @@ ecommerce_analytics: # musi pasować do `profile:` w dbt_project.yml
       threads: 8  # uzasadnienie przy targecie dev
       job_execution_timeout_seconds: 300
       job_retries: 1
-      # Wyżej niż w dev, bo prod przebudowuje pełne tabele (w tym --full-refresh modelu
-      # incremental), ale nadal skończony - limit ma złapać błąd (np. zgubiony filtr partycji),
-      # a nie blokować normalny przebieg.
+      # Wyżej niż w dev (pełne rebuildy, --full-refresh), ale skończony - ma złapać błąd, np. zgubiony filtr partycji.
       maximum_bytes_billed: 107374182400  # 100 GiB
