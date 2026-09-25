@@ -1,8 +1,6 @@
-# Dokumentacja + testy + wersjonowanie modelu stg_ecommerce__products. Sekcja versions: pozwala
-# trzymać w projekcie dwie wersje tej samej tabeli jednocześnie (v1 bez kolumny brand, v2 z nią) -
-# przydatne przy zmianie łamiącej kompatybilność. Fizyczne pliki: stg_ecommerce__products_v1.sql
-# i _v2.sql; alias: stg_ecommerce__products w v2 zachowuje niewersjonowaną nazwę tabeli w bazie,
-# żeby narzędzia BI nie musiały znać numeru wersji.
+# Dokumentacja + testy + wersjonowanie stg_ecommerce__products. versions: trzyma dwie wersje naraz
+# (v1 bez brand, v2 z brand) na wypadek zmiany łamiącej. Pliki: _v1.sql i _v2.sql; alias w v2
+# zachowuje w bazie nazwę bez numeru wersji, żeby BI nie musiało jej znać.
 version: 2  # Wersja schematu pliku YAML, używana przez dbt do walidacji formatu
 
 models:
@@ -49,11 +47,9 @@ models:
                   - "Women"
                 quote: true  # Wartości typu tekstowego, muszą być ujęte w cudzysłowy
               config:
-                # error, nie domyślny warn: ta kolumna steruje SCHEMATEM dim_orders (pętla po
-                # get_column_values tworzy kolumnę total_sold_* na każdy dział). Na warn nowy dział
-                # przechodzi z ostrzeżeniem, a dim_orders buduje się z nową, nieopisaną
-                # i nietestowaną kolumną. Na error dbt build zatrzymuje się tutaj i pomija modele
-                # zależne - zmiana schematu publicznego martu wymaga świadomej decyzji.
+                # error, nie warn: department steruje SCHEMATEM dim_orders (kolumna total_sold_*
+                # na każdy dział). Na warn nowy dział przechodzi i mart dostaje nieopisaną,
+                # nietestowaną kolumnę. Na error build staje tutaj i pomija modele zależne.
                 severity: error
 
       - name: brand  # Marka produktu
@@ -61,26 +57,15 @@ models:
 
     latest_version: 2  # Najnowsza wersja modelu, używana domyślnie przez dbt
 
-    # Jeśli nie określisz explicite `latest_version`, dbt:
-    # – spróbuje dopasować plik bez wersji (np. `stg_ecommerce__products.sql`)
-    # – lub wybierze najwyższą zdefiniowaną wersję jako domyślną (czyli tutaj v2)
-
-    # Można to jednak kontrolować ręcznie — np. mając gotową wersję 2,
-    # ale chcąc jeszcze domyślnie korzystać z wersji 1 (np. w fazie testów),
-    # można ustawić: latest_version: 1
-
-    # Wtedy `ref('stg_ecommerce__products')` nadal wskazuje na wersję 1,
-    # dopóki jawnie nie użyjesz `ref('stg_ecommerce__products', version=2)`
-
+    # Bez latest_version dbt bierze najwyższą wersję. latest_version: 1 pozwala trzymać gotową v2
+    # "w testach": ref('stg_ecommerce__products') wskazuje v1, dopóki ktoś jawnie nie poda version=2.
 
     versions:  # Wersjonowanie modelu — pozwala kontrolować zmiany schematu
         - v: 1  # Wersja 1 modelu
-          # Data końca życia v1. Bez niej wersjonowanie chroni przed cichą zmianą schematu, ale nie
-          # daje ścieżki wyjścia: konsument przypięty do starej wersji nigdy nie dostaje sygnału, że
-          # ma migrować, a v1 buduje się (i kosztuje czas) przy każdym dbt run bez końca. Z datą dbt
-          # ostrzega każdego, kto ref()-uje v1 po jej upływie - ostrzeżenie da się wyłapać w CI
-          # (np. --warn-error-options). Dziś v1 nie ma ani jednego konsumenta (jedyny pin w repo to
-          # version=2 w int_ecommerce__order_items_products.sql), więc po tej dacie do usunięcia.
+          # Data końca życia v1 - bez niej przypięty konsument nigdy nie dostaje sygnału do migracji,
+          # a v1 buduje się bez końca. Deklaracja, nie bramka: dbt tylko OSTRZEGA przy ref() do v1,
+          # zatrzyma to dopiero CI z --warn-error-options. v1 nie ma dziś konsumentów (jedyny pin
+          # to version=2) - po tej dacie do usunięcia.
           deprecation_date: 2026-12-31
           columns:
           - include: all  # Dołącz wszystkie kolumny
