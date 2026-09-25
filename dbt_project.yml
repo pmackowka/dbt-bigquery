@@ -34,6 +34,7 @@ clean-targets:
 # procesu dbt. Zostaje jako przykład hooka, nie wzorzec: to dodatkowy job przy KAŻDEJ komendzie
 # i obiekt spoza lineage dbt. Dla jednego REGEXP_EXTRACT wystarczy makro inline (jak is_weekend);
 # trwały UDF ma sens, gdy logikę wołają konsumenci SPOZA dbt (BI, konsola).
+# Przykłady: analityk w BigQuery Studio, wymiar w LookML, notebook z pandas-gbq - tam nie ma Jinja.
 on-run-start:
   - "{{ get_brand_name() }}"  # Automatyczne uruchomienie makra na starcie
 
