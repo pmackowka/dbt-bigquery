@@ -1,7 +1,6 @@
-# Dokumentacja + testy dla stg_ecommerce__orders. order_id używa własnego generic testu
-# primary_key (tests/generic/test_primary_key.sql = not_null + unique w jednym). Testy z where:
-# w config (returned_at, delivered_at, shipped_at) sprawdzają wartość tylko na podzbiorze wierszy,
-# np. returned_at nie może być NULL TYLKO gdy status = 'Returned'.
+# Dokumentacja + testy dla stg_ecommerce__orders. order_id: własny test primary_key (not_null +
+# unique). where: w config testuje tylko podzbiór, np. returned_at NOT NULL tylko dla 'Returned'.
+# Testy bez jawnego severity są na warn (default projektu) - czyli tylko wpis w logu, nic nie blokują.
 version: 2
 
 models:
@@ -13,12 +12,9 @@ models:
               config:
                 severity: error
 
-      # error, nie domyślny warn: user_id i created_at to klucze dalszej logiki - user_id joinuje
-      # int_ecommerce__first_order_created do dim_orders, created_at liczy MIN() pierwszego
-      # zamówienia i days_since_first_order. warn nie blokuje dbt build, więc dim_orders
-      # zbudowałby się dalej na NULL-ach w kluczu - mart "ufałby testom w staging", które niczego
-      # nie zatrzymują. Reguła: error dla kolumn, na których stoją joiny/agregacje, warn dla
-      # reguł biznesowych (statusy, kolejność timestampów niżej).
+      # error, nie warn: user_id joinuje datę pierwszego zamówienia do dim_orders, created_at liczy
+      # MIN() i days_since_first_order. Na warn dim_orders zbudowałby się na NULL-ach w kluczu.
+      # Reguła: error dla kolumn pod joinami/agregacjami, warn dla reguł biznesowych niżej.
       - name: user_id
         tests:
           - not_null:
@@ -70,10 +66,9 @@ models:
 
       - name: status
         description: "{{ doc('status') }}"
-        # Treść opisu żyje w osobnym pliku: models/documents/doc_ecommerce__status.md. Po co: ten
-        # sam blok doc() można wkleić w dowolnym innym miejscu (patrz models/marts/dim_orders.yml,
-        # kolumna order_status - identyczne odwołanie), więc opis statusów zamówienia edytuje się
-        # raz, w jednym miejscu, zamiast kopiować ten sam tekst do wielu plików .yml.
+        # Opis w models/documents/doc_ecommerce__status.md, używany też w dim_orders.yml - edycja
+        # w jednym miejscu. DRY tylko w repo: persist_docs kopiuje tekst do metadanych KAŻDEJ tabeli,
+        # więc po zmianie .md oba modele trzeba przebudować, żeby opisy w BigQuery się zgadzały.
         tests:
           - not_null
           - accepted_values:
@@ -85,10 +80,8 @@ models:
                   - Complete
                   - Returned
               config:
-                # Nadpisanie domyślnej, automatycznie generowanej nazwy testu (byłaby długa i mało
-                # czytelna, np. accepted_values_stg_ecommerce__orders_status__Processing__...) -
-                # własna nazwa trafia do logu przy błędzie, więc od razu wiadomo, co konkretnie
-                # nie przeszło, bez rozszyfrowywania wygenerowanej nazwy.
+                # Własna nazwa zamiast generowanej (accepted_values_stg_ecommerce__orders_status__...)
+                # - w logu błędu od razu widać, co nie przeszło.
                 name: unexpected_order_status
 
       - name: num_items_ordered
