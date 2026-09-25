@@ -1,16 +1,10 @@
 {# Intermediate: łączy stg_ecommerce__order_items z produktami (v2), liczy item_profit/item_discount dla dim_orders #}
 {#
-	Ten model MUSI zostać table/view - nie może być ephemeral, choć nikt go nie odpytuje wprost
-	i na pierwszy rzut oka to kandydat do "optymalizacji" (jak int_ecommerce__first_order_created).
-	Blokuje to rzecz niewidoczna z tego pliku: dim_orders.sql skanuje go
-	dbt_utils.get_column_values() przy kompilacji, a makro rzuca twardy błąd dla modelu
-	ephemeral (czyta z information schema, więc potrzebuje relacji w bazie) - błąd pojawi się
-	w INNYM pliku niż ten zmieniony.
-	Testy w int_ecommerce.yml (unique/not_null na order_item_id) NIE są blokadą: test na modelu
-	ephemeral działa, bo dbt wkleja model jako CTE do SQL testu.
-	Reguła: ephemeral tylko dla modelu, który nie musi istnieć jako relacja w bazie - nikt go
-	nie odpytuje wprost ani nie skanuje makrem przy kompilacji. first_order_created ten warunek
-	spełnia, ten model nie (przez get_column_values).
+	Ten model MUSI zostać table/view, choć nikt go nie odpytuje wprost i wygląda na kandydata do
+	ephemeral: dim_orders.sql skanuje go dbt_utils.get_column_values(), które rzuca twardy błąd dla
+	modelu ephemeral (czyta information schema, więc potrzebuje relacji w bazie). Błąd wyszedłby
+	w INNYM pliku niż zmieniony. Testy z int_ecommerce.yml nie są przeszkodą - dbt wkleja ephemeral
+	jako CTE także do testów - ale przy ephemeral każdy z 10 testów przeliczałby join od nowa.
 #}
 WITH products AS (
 	SELECT
