@@ -1,7 +1,6 @@
-# Dokumentacja + testy + kontrakt dla stg_ecommerce__order_items. Kontrakt (contract: enforced)
-# wymusza strukturę (data_type, constraints) PRZED zbudowaniem modelu - jeśli SQL nie zgadza się
-# z deklaracją (brakująca kolumna, zły typ), build pada od razu. Testy w tests: (not_null, unique,
-# relationships) sprawdzają dane PO zbudowaniu - to dwa różne, uzupełniające się mechanizmy.
+# Dokumentacja + testy + kontrakt dla stg_ecommerce__order_items. Kontrakt sprawdza STRUKTURĘ
+# (kolumny, typy, constraints) przy budowie - rozjazd = build pada od razu. Testy sprawdzają DANE
+# po zbudowaniu. Dwa uzupełniające się mechanizmy.
 version: 2
 
 models:
@@ -23,11 +22,8 @@ models:
         # Kontrakt - wymuszany PRZED zbudowaniem modelu
         data_type: INTEGER
         constraints:
-          # Ten sam warunek (not_null) jest tu zapisany DWA razy - w tests: wyżej i w
-          # constraints: tutaj. Można by usunąć test not_null jako duplikat, ale zostawiony
-          # celowo: pokazuje, że to dwa różne mechanizmy działające w różnych momentach (kontrakt
-          # zablokuje build z błędem PRZED utworzeniem tabeli, test złapałby to samo dopiero PO -
-          # w praktyce kontrakt i tak zdąży pierwszy, test tu jest głównie demonstracyjny).
+          # not_null celowo DWA razy (test wyżej + constraint tutaj) - pokazuje dwa momenty
+          # kontroli: constraint zatrzyma budowę tabeli, test złapałby to samo dopiero po niej.
           - type: not_null
 
       - name: order_id
