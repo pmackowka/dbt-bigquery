@@ -1,26 +1,24 @@
-# Dokumentacja + testy + governance dla dim_orders (jedyny model w marts/). Grupa "sales" +
-# access: public to mechanizm kontroli, KTÓRE modele mogą ref()-ować dim_orders (private = tylko
-# modele w tej samej grupie, protected = grupa/projekt, public = dowolny projekt dbt) - nie ma
-# wpływu na uprawnienia w samej bazie danych. +group: sales jest też ustawiony globalnie na cały
-# folder marts/ w dbt_project.yml; tu w config: powtórzony jawnie dla czytelności.
+# Dokumentacja + testy + governance dla dim_orders (jedyny model w marts/).
+# Governance w dbt to głównie metadane: group + access pilnują tylko ref() między modelami. Kto czyta
+# tabelę - IAM na datasecie BigQuery (albo grants); kto ją buduje - IAM konta z profiles.yml; kto
+# zmienia kod - git (.github/CODEOWNERS + branch protection). group powtórzony tu mimo +group na
+# folderze marts/ w dbt_project.yml - dla czytelności.
 version: 2
 
 groups:
   - name: sales
     owner:
-      # Wymagane 'name' albo 'email'. Poprzednio był tu placeholder sales@my-company.com z materiału
-      # źródłowego - adres, który nigdzie nie prowadzi, jest gorszy niż brak: dbt docs pokazuje go
-      # jako kontakt. owner to czysta metadana (dbt jej nie waliduje i nie wiąże z tożsamością,
-      # która odpala dbt run), więc ma wskazywać realną osobę - tę samą co .github/CODEOWNERS.
+      # Deklaracja, nie bramka: owner to tekst w dbt docs - dbt go nie waliduje i nie wiąże ani
+      # z tym, kto odpala dbt run, ani z tym, kto może zmienić kod. Realną akceptację zmian daje
+      # dopiero .github/CODEOWNERS + branch protection, dlatego wskazuje tę samą osobę (zamiast
+      # placeholdera z materiału źródłowego, który dbt docs pokazywał jako kontakt).
       name: Piotr Maćkówka
 
 models:
   - name: dim_orders
     description: "Tabela zawierająca informacje na poziomie zamówienia"
 
-    # Konfiguracja przypisująca model do grupy "sales"
-    # Grupa "sales" musi być zdefiniowana w bloku groups: - tu na górze tego pliku; osobny groups.yml
-    # to tylko konwencja porządkowa przy wielu grupach, nie wymóg dbt.
+    # Grupa musi być zdefiniowana w bloku groups: (tu, na górze pliku); osobny groups.yml to tylko konwencja.
     config:
       group: sales
 
@@ -29,24 +27,19 @@ models:
       # - protected: modele z tej samej grupy lub projektu mogą go używać (domyślny poziom)
       # - public: każdy model (nawet z innego projektu dbt) może użyć ref()
       #
-      # Dlaczego akurat public dla TEGO modelu: dim_orders to ostatnia warstwa (mart) - punkt
-      # końcowy, po który mają sięgać narzędzia BI i inne zespoły/projekty dbt (dbt Mesh). Modele
-      # warstw wcześniejszych (staging, intermediate) świadomie zostałyby private/protected, żeby
-      # nikt z zewnątrz nie budował logiki na tabelach pośrednich, które mogą się zmienić bez
-      # ostrzeżenia - tylko finalny mart ma być stabilnym, publicznym kontraktem.
+      # public, bo mart to punkt końcowy dla BI i innych projektów dbt (dbt Mesh); staging
+      # i intermediate zostają protected, żeby nikt nie budował logiki na tabelach pośrednich.
+      # Deklaracja, nie bramka: public nie daje nikomu dostępu do danych (to IAM/grants) ani sam
+      # nie pilnuje stabilności schematu - to robi dopiero kontrakt niżej.
       access: public
 
-      # Kontrakt: przy każdym buildzie dbt porównuje kolumny (nazwy + typy) z tego pliku z faktycznym
-      # wynikiem SELECT-a i PRZERYWA build przy rozjeździe. Bez niego access: public było deklaracją
-      # bez pokrycia, a ten model ma schemat zależny od DANYCH: kolumny total_sold_* generuje pętla
-      # po dbt_utils.get_column_values(). Nowy dział w źródle = nowa kolumna w publicznym marcie,
-      # bez opisu, bez testu i bez zmiany w kodzie. Z kontraktem taka zmiana zatrzymuje build, dopóki
-      # ktoś świadomie nie dopisze kolumny tutaj.
-      # Efekt uboczny, też pożądany: tabela z kontraktem jest budowana jako "select <kolumny w
-      # kolejności z YAML> from (sql modelu)", więc kolejność kolumn przestaje zależeć od tego, który
-      # dział ma więcej wierszy (get_column_values sortuje po count(*) desc). Dla SELECT * w BI to
-      # stabilny układ tabeli.
-      # Koszt: data_type dla każdej kolumny i dopisywanie YAML przy każdej zmianie SELECT-a.
+      # Kontrakt - realna bramka: przy buildzie dbt porównuje kolumny i typy z tego pliku z wynikiem
+      # SELECT-a i PRZERYWA build przy rozjeździe. Tu ważne, bo kolumny total_sold_* wynikają
+      # z DANYCH (pętla po get_column_values) - nowy dział w źródle to nowa kolumna publicznego martu
+      # bez zmiany w kodzie. Kontrakt zamienia to w czerwony build. Uwaga: dbt parse tego nie
+      # sprawdzi - kontrakt działa dopiero przy dbt build na żywej bazie.
+      # Przy okazji tabela powstaje jako "select <kolumny z YAML> from (...)", więc kolejność kolumn
+      # przestaje zależeć od liczności działów. Koszt: data_type przy każdej kolumnie.
       contract:
         enforced: true
 
@@ -54,19 +47,14 @@ models:
     # zgodnie z kolejnością w dim_orders.sql.
     columns:
 
-    # Kolumny ze stg_ecommerce__orders - nie testujemy ich tu ponownie (poza kluczem głównym),
-    # bo są już przetestowane w modelu staging. Po co ten podział: testowanie w jednym miejscu
-    # (warstwa staging) unika duplikowania tych samych testów w każdym kolejnym modelu, który
-    # z danej kolumny korzysta - dim_orders ufa, że stg_ecommerce__orders już zweryfikowało dane.
-    # To zaufanie działa tylko dla testów na severity: error - test na warn "weryfikuje", ale nie
-    # zatrzymuje builda, więc dim_orders i tak by się zbudował. Stąd error na kluczach, na których
-    # ten model stoi (user_id, created_at, order_id w stg_ecommerce__orders.yml).
+    # Kolumny ze stg_ecommerce__orders - bez ponownych testów (poza kluczem), bo testuje je staging;
+    # jeden test w jednym miejscu zamiast kopii w każdym modelu. To zaufanie działa tylko dla testów
+    # na error: test na warn niczego nie zatrzymuje i dim_orders zbuduje się mimo złych danych.
+    # Stąd error na kluczach, na których ten model stoi (user_id, created_at, order_id).
       - name: order_id
         data_type: INTEGER
         tests:
-          # Generic test zdefiniowany w tests/generic/test_primary_key.sql - model i nazwa
-          # kolumny są przekazywane automatycznie przez dbt (patrz definicja testu), nie trzeba
-          # ich tu jawnie podawać.
+          # Generic test z tests/generic/test_primary_key.sql - dbt sam przekazuje model i kolumnę.
           - primary_key:
               config:
                 severity: error
@@ -109,10 +97,8 @@ models:
         data_type: INTEGER
         description: "Number of items in the order"
 
-    # Kolumny z int_ecommerce__order_items_products (agregaty policzone w TYM modelu, nie
-    # przepisane 1:1 z warstwy staging) - w odróżnieniu od kolumn wyżej, te TRZEBA przetestować
-    # tutaj: to nowa logika (SUM, agregacja po department), której nie sprawdza żaden wcześniejszy
-    # model - błąd w liczeniu sumy ujawniłby się dopiero tu, nie w staging.
+    # Agregaty liczone w TYM modelu (SUM, podział po department) - testowane tutaj, bo to nowa
+    # logika, której nie sprawdza żaden wcześniejszy model.
       - name: total_sale_price
         data_type: FLOAT64
         description: "Sum of item_sale_price for the whole order"
