@@ -30,74 +30,47 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
-# Na początku każdego procesu dbt zostanie uruchomione makro get_brand_name()
-# (zdefiniowane w macros/macro_get_brand_name.sql). Tworzy ono funkcję użytkownika (UDF)
-# w schemacie w BigQuery.
-# Zostaje celowo jako przykład mechanizmu hooka, nie jako wzorzec. Koszt tej architektury: dodatkowy
-# job przy KAŻDEJ komendzie (run/test/seed/snapshot/build) i obiekt w bazie, którego nie widać
-# w lineage dbt. Za jednolinijkowy REGEXP_EXTRACT użyty w jednym modelu to za dużo - w realnym
-# projekcie byłoby to makro rozwijane inline (jak is_weekend w dim_orders.sql). Trwały UDF ma sens
-# dopiero wtedy, gdy tę samą logikę muszą wołać konsumenci SPOZA dbt (BI, analityk w konsoli).
+# Makro get_brand_name() (macros/macro_get_brand_name.sql) tworzy UDF w BigQuery na starcie każdego
+# procesu dbt. Zostaje jako przykład hooka, nie wzorzec: to dodatkowy job przy KAŻDEJ komendzie
+# i obiekt spoza lineage dbt. Dla jednego REGEXP_EXTRACT wystarczy makro inline (jak is_weekend);
+# trwały UDF ma sens, gdy logikę wołają konsumenci SPOZA dbt (BI, konsola).
 on-run-start:
   - "{{ get_brand_name() }}"  # Automatyczne uruchomienie makra na starcie
 
 # Konfiguracja domyślnego zachowania dla modeli w projekcie
 models:
   ecommerce_analytics:
-    # table, nie view: dataset jest mały (thelook_ecommerce), więc koszt przeliczenia całej tabeli
-    # przy każdym dbt run jest pomijalny, a odczyt z gotowej tabeli jest szybszy niż z widoku
-    # przeliczanego za każdym zapytaniem - view/incremental włączane punktowo tam, gdzie się opłaca
-    # (models/staging/stg_ecommerce__events.sql - incremental, bo tabela realnie rośnie).
-    # ZAŁOŻENIE DO REWIZJI: to działa tylko dla obecnej skali publicznego datasetu demo. table
-    # płaci pełny skan źródła przy KAŻDYM dbt run, view - dopiero gdy ktoś go odpyta. Przy źródle
-    # rzędu setek GB i codziennym harmonogramie koszt compute rebuildów staging dominuje nad
-    # storage o rząd wielkości. Wtedy: staging jako view (dziś jedynym konsumentem staging są
-    # modele intermediate/marts, nie BI), table/incremental tylko dla martów i dużych, często
-    # odpytywanych źródeł.
+    # table, nie view: przy małym datasecie demo pełny rebuild jest pomijalny, a odczyt z tabeli
+    # szybszy niż z widoku. Incremental punktowo tam, gdzie tabela rośnie (stg_ecommerce__events).
+    # ZAŁOŻENIE DO REWIZJI: table płaci pełny skan źródła przy KAŻDYM run, view - dopiero przy
+    # odpytaniu. Przy źródle rzędu setek GB: staging jako view, table/incremental tylko dla martów.
     +materialized: table
-    # persist_docs zapisuje description: z .yml jako metadane BEZPOŚREDNIO w BigQuery (widoczne w
-    # konsoli GCP i narzędziach BI), więc opis kolumny nie żyje tylko w repo - ktoś odpytujący
-    # tabelę wprost z BigQuery Studio widzi ten sam opis, bez zaglądania do dbt docs.
+    # Opisy z .yml trafiają jako metadane do BigQuery - widać je w konsoli i BI, nie tylko w dbt docs.
     +persist_docs:
       relation: true
       columns: true
-    # Tabele dev znikają po 1h - nie trzeba pamiętać o ręcznym sprzątaniu eksperymentalnych
-    # przebiegów. Prod: none, czyli BEZ expiration. Expiration to zegar, który KASUJE tabelę, nie
-    # bufor bezpieczeństwa: przy 7 dniach wystarczy tydzień przerwy w harmonogramie, żeby tabela
-    # prod po cichu zniknęła - dbt run nie ma czego zgłosić (nic nie odpalał), a błąd wychodzi
-    # dopiero u konsumenta jako "table not found".
-    # To default opt-out: dotyczy KAŻDEGO modelu, chyba że model go nadpisze - model incremental
-    # musi to zrobić (patrz stg_ecommerce__events.sql), inaczej w dev prawie zawsze buduje się od
-    # zera i ścieżka MERGE nie jest nigdy testowana. Seedów i snapshotów to nie dotyczy (sekcja
-    # models: obejmuje tylko modele).
-    # Jedna linia wyrażenia, nie blok |: blok dawał w manifeście string ' 1\n' (działał, bo adapter
-    # wkleja wartość jako tekst do SQL), a pojedyncze wyrażenie dbt renderuje natywnie - manifest
-    # ma int 1 w dev i null w prod (sprawdzone w target/manifest.json po dbt parse).
+    # Dev: tabele znikają po 1h (bez ręcznego sprzątania). Prod: none, bo expiration to zegar
+    # KASUJĄCY tabelę - tydzień przerwy w harmonogramie i tabela prod znika bez żadnego błędu w dbt.
+    # Default dotyczy każdego modelu; model incremental musi go nadpisać (stg_ecommerce__events),
+    # inaczej w dev zawsze buduje się od zera. Jedna linia zamiast bloku |, bo tak dbt renderuje
+    # wartość natywnie (int 1 / null w manifeście), a nie jako string ' 1\n'.
     +hours_to_expiration: "{{ 1 if target.name == 'dev' else none }}"
 
     marts:
-      # group (razem z access - patrz models/marts/dim_orders.yml) egzekwuje dokładnie jedną rzecz:
-      # które modele mogą się do siebie odwołać przez ref(), sprawdzane przy kompilacji. To NIE jest
-      # kontrola dostępu: kto może odpalić dbt run, decyduje IAM w GCP (tożsamość z profiles.yml),
-      # a kto może zmienić kod modelu - git (.github/CODEOWNERS + branch protection).
-      # +group na folderze marts/ jest dziedziczone PO CICHU: każdy nowy model wrzucony do marts/
-      # trafia do grupy sales bez żadnej bramki czy przeglądu - to zwykłe dziedziczenie configu.
-      # access celowo NIE jest ustawiony na folderze: nowy model dostaje domyślne protected, a nie
-      # public jak dim_orders. public (= stabilny kontrakt dla innych projektów) ma być jawną
-      # decyzją per model, nie skutkiem tego, w którym folderze leży plik.
+      # Deklaracja, nie kontrola dostępu. group + access pilnują tylko, kto może ref()-ować model
+      # (przy kompilacji). Kto może zbudować model - IAM konta z profiles.yml; kto czytać tabelę -
+      # IAM na datasecie BigQuery; kto zmienić kod - git (.github/CODEOWNERS + branch protection).
+      # +group dziedziczy PO CICHU każdy nowy model w marts/, bez żadnego przeglądu. access celowo
+      # nie jest tu ustawiony: public ma być jawną decyzją per model, nie skutkiem folderu.
       +group: sales
 
 
 # Konfiguracja domyślna dla testów w projekcie
 tests:
   ecommerce_analytics:
-    # warn, nie error: pojedynczy nieudany test nie powinien blokować całego dbt build/CI - problem
-    # jakości danych ma być WIDOCZNY, ale pipeline ma polecieć dalej. error ustawiany świadomie
-    # punktowo tam, gdzie naruszenie jest krytyczne (np. primary_key w stg_ecommerce__orders.yml -
-    # złamany klucz główny psuje każdy kolejny join, więc ma zatrzymać build, nie tylko ostrzec).
-    # Pułapka tego defaultu: warn NIE blokuje modeli zależnych - dbt build zbuduje dim_orders nawet
-    # na złamanym kluczu joina. Dlatego error dostaje każda kolumna, na której stoi join albo
-    # agregacja (klucze w staging, accepted_values na department sterujące kolumnami dim_orders),
-    # a warn zostaje dla reguł czysto biznesowych. warn jest też "widoczny" tylko w logu przebiegu:
-    # bez routingu (Slack/PagerDuty albo --store-failures + monitoring tabeli) nikt go nie zobaczy.
+    # warn: problem ma być widoczny, a pipeline ma lecieć dalej. Deklaracja, nie bramka: warn nie
+    # zatrzymuje builda ani modeli zależnych (exit code 0), a "widoczny" znaczy tylko: wpis w logu.
+    # Dlatego error dostaje każda kolumna, na której stoi join albo agregacja (klucze w staging,
+    # department sterujący kolumnami dim_orders); warn zostaje dla reguł biznesowych. Żeby warn
+    # ktoś zobaczył, potrzebny jest routing: --store-failures + alert (Slack/PagerDuty).
     +severity: warn
