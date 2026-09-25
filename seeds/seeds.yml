@@ -1,25 +1,18 @@
-# Dokumentacja + testy + typy kolumn dla seeda seed_distribution_centers_new.csv. Seed to plik CSV
-# ładowany do bazy WYŁĄCZNIE przez `dbt seed` (dbt run go pomija), ale testowany normalnie przez
-# `dbt test` jak każdy inny model. column_types w config wymusza typy w BigQuery zamiast polegać
-# na automatycznym wykryciu z zawartości CSV.
+# Dokumentacja, testy i typy dla seed_distribution_centers_new.csv. Seed ładuje dbt seed albo
+# dbt build (dbt run go pomija), testuje się go jak zwykły model.
 version: 2
 
 seeds:
   - name: seed_distribution_centers_new
-    # Opis mówi, CZYM są dane, nie tylko jakim mechanizmem trafiają do bazy. W projekcie są trzy
-    # niezależne tabele o prawie tej samej nazwie: publiczne źródło distribution_centers, snapshot
-    # SCD2 na tym źródle i ten seed. Bez zdania o treści seed wygląda jak duplikat źródła albo
-    # próba jego nadpisania - a to dwa centra (id 11-12), których w źródle NIE MA.
-    # Seed nie ma dziś żadnego konsumenta (brak ref() w modelach) - to świadomie izolowany przykład
-    # mechanizmu. W realnym projekcie dopiero model łączący źródło z seedem (UNION ALL) nadałby mu
-    # sens.
+    # Opis mówi, CZYM są dane: trzy tabele mają prawie tę samą nazwę (źródło, snapshot, ten seed),
+    # więc bez tego seed wygląda jak duplikat źródła - a to centra, których w źródle NIE MA.
+    # Seed nie ma konsumenta (brak ref()) - świadomie izolowany przykład; w realnym projekcie
+    # sens nadałby mu dopiero UNION ALL ze źródłem.
     description: >
       Dwa nowe centra dystrybucji (id 11-12: Miami FL, Denver CO), nieobecne w publicznym źródle
       thelook_ecommerce.distribution_centers. Przykład danych ładowanych do hurtowni ręcznie z pliku
       CSV, dopóki nie zaczną płynąć z systemu źródłowego - nie kopia ani nadpisanie źródła.
-    # Test na poziomie całego seeda (nie kolumny) - pilnuje, żeby plik CSV faktycznie miał 2
-    # wiersze. Po co: seed to plik trzymany w repo, ktoś mógłby go przypadkiem nadpisać albo
-    # dodać/usunąć wiersz przy edycji - ten test złapałby taką pomyłkę przy najbliższym dbt test.
+    # Test na całym seedzie: dokładnie 2 wiersze - łapie przypadkowe nadpisanie CSV przy edycji.
     tests:
       - dbt_expectations.expect_table_row_count_to_equal:
           arguments:
@@ -36,11 +29,8 @@ seeds:
       - name: latitude
       - name: longitude
 
-    # Wymuszenie typów kolumn jest opcjonalne - bez tego BigQuery i tak wykryje typy sam,
-    # zgadując je z zawartości CSV. Robimy to jawnie, bo auto-detekcja bywa zawodna przy małych
-    # plikach (np. kolumna z samymi liczbami całkowitymi w pierwszych wierszach może zostać
-    # rozpoznana jako INTEGER, mimo że dalej w pliku pojawia się wartość z przecinkiem) - jawny
-    # typ eliminuje to ryzyko raz na zawsze, niezależnie od tego, jak zmieni się zawartość pliku.
+    # Typy jawnie, bo auto-detekcja z CSV zgaduje z zawartości: kolumna z samymi liczbami całkowitymi
+    # stanie się INTEGER i pęknie przy pierwszej wartości z przecinkiem dopisanej później.
     config:
       column_types:
         id: INTEGER
