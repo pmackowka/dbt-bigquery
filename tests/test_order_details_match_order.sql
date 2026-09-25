@@ -1,19 +1,11 @@
-{# Jawny severity='warn', mimo że to i tak domyślne ustawienie projektu (dbt_project.yml -
-   tests: +severity: warn) - celowa nadmiarowość: ktoś czytający TYLKO ten plik (bez otwierania
-   dbt_project.yml) od razu widzi, że niezgodność ma tylko ostrzegać, nie blokować builda. #}
+{# Jawny warn, choć to default projektu - czytający sam ten plik od razu widzi, że test nie blokuje
+   builda. Czyli: bez routingu alertów niezgodność kończy jako wpis w logu. #}
 {{ config(severity='warn') }}
 
 /*
-	Sprawdza, czy dla każdego zamówienia liczba pozycji w tabeli order_items
-	zgadza się z kolumną num_items_ordered w tabeli orders.
-
-	Zwraca wszystkie wiersze, w których liczba się nie zgadza (albo w ogóle brak dopasowania
-	po jednej ze stron - FULL OUTER JOIN niżej wyłapuje też takie przypadki, nie tylko
-	rozjazd liczb).
-
-	Można by dorzucić tu więcej kontroli (np. że każde zamówienie ma dokładnie 1 user_id, albo
-	że znaczniki czasu shipped_at są spójne w ramach jednego zamówienia), ale to tylko przykład
-	pojedynczego testu (singular test) - nie ma ambicji być kompletnym zestawem kontroli.
+	Singular test: liczba pozycji w order_items ma się zgadzać z num_items_ordered w orders.
+	Zwraca wiersze z rozjazdem liczb albo bez pary po jednej ze stron (stąd FULL OUTER JOIN).
+	Pojedynczy przykład, nie kompletny zestaw kontroli spójności zamówienia.
 */
 
 WITH order_details AS (
