@@ -19,6 +19,8 @@ analyses/         # zapytania eksploracyjne (dbt compile, bez materializacji)
 
 ## Setup
 
+Wymagane narzędzia: [gcloud CLI](https://cloud.google.com/sdk/docs/install) (krok 1) i [uv](https://docs.astral.sh/uv/) (`brew install uv`, krok 2). Pythona nie trzeba instalować osobno - uv pobierze wersję z `.python-version`.
+
 Autoryzacja przez **konto serwisowe** (service account) — nie przez lokalny OAuth (`gcloud auth application-default login`). OAuth loguje CIEBIE i działa tylko na maszynie, na której go odpaliłeś; konto serwisowe to tożsamość samego projektu, przenośna (CI/CD, inny laptop, kontener) i taka, której uprawnienia widać jawnie w IAM, a nie w czyjejś sesji logowania.
 
 ### 1. GCP — projekt i konto serwisowe
@@ -66,7 +68,7 @@ uv sync                       # tworzy .venv DOKŁADNIE według uv.lock (w razie
 source .venv/bin/activate     # Windows: .venv\Scripts\activate - albo bez aktywacji: uv run dbt ...
 ```
 
-Środowisko Pythona zarządzane jest przez [uv](https://docs.astral.sh/uv/) (`brew install uv`). Za odtwarzalność odpowiadają trzy pliki:
+Za odtwarzalność środowiska odpowiadają trzy pliki:
 
 | Plik | Kto go pisze | Co zawiera |
 |---|---|---|
@@ -93,12 +95,13 @@ Target `prod` ma **osobne** zmienne (`BIGQUERY_PROD_PROJECT`, `BIGQUERY_PROD_KEY
 ### 4. Pierwszy build
 
 ```bash
-dbt seed --profiles-dir .       # ładuje seeds/seed_distribution_centers_new.csv (dbt run tego NIE robi)
-dbt snapshot --profiles-dir .   # pierwszy przebieg snapshotu SCD2 - zakłada tabelę historii w BigQuery
-dbt build --profiles-dir .      # seed + snapshot + run + test w jednym poleceniu, kolejność wg DAG-a
+dbt build --profiles-dir .               # seed + snapshot + run + test w kolejności DAG-a
+dbt build --profiles-dir . -s +dim_orders   # albo tylko mart i wszystko, od czego zależy
 ```
 
-Kolejność ma znaczenie: `seed` przed `build`, bo `snapshots/snapshot__distribution_centers.sql` czyta z `source()`, nie z seeda — ale sam seed też trzeba załadować raz, zanim cokolwiek innego po niego sięgnie. `dbt build` przy kolejnych uruchomieniach wystarcza sam.
+`dbt build` sam ładuje seed i robi snapshot - osobne `dbt seed` / `dbt snapshot` nie są potrzebne. Pomija je tylko `dbt run`. Datasety (`dbt_dev_project`, `snapshots_project`) dbt zakłada sam przed hookiem `on-run-start`, więc UDF `get_brand_name` powstaje już przy pierwszym przebiegu.
+
+Świeżości źródeł `dbt build` nie sprawdza. Żeby nie budować na starych danych, odpal najpierw `dbt source freshness --profiles-dir .` - kod wyjścia 1 (przekroczone `error_after`) oznacza: nie odpalaj builda.
 
 ## Notatki (prywatne, tylko dla mnie)
 
