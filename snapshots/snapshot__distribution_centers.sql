@@ -1,31 +1,22 @@
 {#
-	Snapshot = zdjęcie stanu tabeli źródłowej w konkretnym momencie, zapisywane do OSOBNEJ,
-	rosnącej tabeli historii (nie nadpisywanej jak zwykły model) - to implementacja SCD2 (Slowly
-	Changing Dimension typu 2): każda zmiana w distribution_centers tworzy nowy wiersz z własnym
-	okresem ważności, zamiast nadpisywać stary. dbt dokłada automatycznie 4 kolumny techniczne:
-	dbt_scd_id (hash wersji rekordu), dbt_updated_at, dbt_valid_from, dbt_valid_to (NULL = wersja
-	aktualna). Bez tego dbt run po prostu nadpisałby starą wartość i historia zmian by przepadła.
+	Snapshot SCD2: każda zmiana w distribution_centers dopisuje nowy wiersz z okresem ważności do
+	OSOBNEJ, rosnącej tabeli historii, zamiast nadpisywać stary. dbt dokłada kolumny dbt_scd_id,
+	dbt_updated_at, dbt_valid_from, dbt_valid_to (NULL = wersja aktualna).
 
-	Uruchamiane WYŁĄCZNIE przez `dbt snapshot` (dbt run/build tego nie robi) - trzeba pamiętać
-	o odpaleniu tej komendy regularnie (np. w CI/CD przed dbt build), inaczej snapshot się nie
-	zaktualizuje mimo że źródłowe dane się zmieniły.
+	Uruchamia go dbt snapshot albo dbt build - dbt run go pomija. Historia powstaje tylko w momentach
+	przebiegu: zmiana, która pojawi się i zniknie między dwoma przebiegami, nie zostanie zapisana.
 
-	target_schema='snapshots_project' - osobny schemat na tabele snapshotów, świadome oddzielenie
-	od schematów modeli (staging/marts), żeby nie zgubić, które tabele w BigQuery to zwykłe modele
-	(nadpisywane przy każdym run), a które to rosnąca historia zmian.
+	target_schema='snapshots_project' - osobny schemat, żeby odróżnić rosnącą historię od modeli
+	nadpisywanych przy każdym run. UWAGA: target_schema jest używany dosłownie, bez prefiksu
+	target.schema (w odróżnieniu od nowego configu schema=), więc przy jednym projekcie GCP dev
+	i prod piszą do TEJ SAMEJ tabeli historii. Rozdziela je dopiero osobny projekt GCP dla prod
+	(profiles.yml.example). Przejście na schema= porzuciłoby istniejącą historię - wymaga migracji.
 
-	unique_key='id' - klucz, po którym dbt rozpoznaje "to ten sam rekord co poprzednio" - bez
-	tego każdy przebieg tworzyłby nowe wiersze zamiast wykrywać zmiany istniejących.
+	unique_key='id' - po nim dbt rozpoznaje ten sam rekord; bez niego każdy przebieg dopisywałby
+	wiersze zamiast wykrywać zmiany.
 
-	strategy='check', nie 'timestamp' - tabela źródłowa NIE MA kolumny updated_at (w odróżnieniu
-	np. od modeli w repo dbt-snowflake, gdzie strategy='timestamp' jest możliwe właśnie dlatego,
-	że tam taka kolumna istnieje). 'check' więc porównuje WARTOŚCI wskazanych kolumn między
-	bieżącym stanem a ostatnim snapshotem, zamiast polegać na znaczniku czasu, którego tu po
-	prostu nie ma.
-
-	check_cols=['name', 'latitude', 'longitude'] - tylko te 3 kolumny biznesowe faktycznie mogą
-	się zmienić w tym źródle (np. przy przeniesieniu centrum dystrybucji). Świadomie NIE ma tu
-	'id' - to unique_key, zmiana id oznaczałaby inny rekord, nie edycję tego samego.
+	strategy='check', nie 'timestamp' - źródło nie ma kolumny updated_at, więc dbt porównuje
+	WARTOŚCI kolumn z check_cols. id nie jest na liście, bo to unique_key - inne id to inny rekord.
 #}
 {% snapshot snapshot__distribution_centers %}
 
