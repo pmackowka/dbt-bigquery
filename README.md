@@ -17,6 +17,66 @@ macros/           # makra Jinja, w tym UDF-y tworzone przez hook on-run-start
 analyses/         # zapytania eksploracyjne (dbt compile, bez materializacji)
 ```
 
+## Lineage (DAG)
+
+Co z czym łączy się przez `source()` i `ref()`. Krawędzie wygenerowane z `target/manifest.json`. W nawiasie materializacja.
+
+```mermaid
+flowchart LR
+    subgraph src["Źródła: bigquery-public-data.thelook_ecommerce"]
+        s_events[(events)]
+        s_orders[(orders)]
+        s_items[(order_items)]
+        s_products[(products)]
+        s_dc[(distribution_centers)]
+        s_unused[("users, inventory_items<br/>zadeklarowane, nieużywane")]
+    end
+
+    subgraph stg["Staging"]
+        events["stg_ecommerce__events<br/>(incremental)"]
+        orders["stg_ecommerce__orders<br/>(table)"]
+        items["stg_ecommerce__order_items<br/>(table, kontrakt)"]
+        prod_v1["stg_ecommerce__products v1<br/>(table, deprecation 2026-12-31)"]
+        prod_v2["stg_ecommerce__products v2<br/>(table, latest)"]
+    end
+
+    subgraph int["Intermediate"]
+        first_order["int_ecommerce__first_order_created<br/>(ephemeral)"]
+        oip["int_ecommerce__order_items_products<br/>(table)"]
+    end
+
+    subgraph mart["Marts"]
+        dim_orders["dim_orders<br/>(table, kontrakt, access: public)"]
+    end
+
+    snapshot["snapshot__distribution_centers<br/>(snapshot SCD2)"]
+    seed["seed_distribution_centers_new<br/>(seed, brak konsumenta)"]
+    udf{{"UDF get_brand_name<br/>(hook on-run-start)"}}
+
+    s_events --> events
+    s_orders --> orders
+    s_items --> items
+    s_products --> prod_v1
+    s_products --> prod_v2
+    s_dc --> snapshot
+    udf -. wywołanie w SELECT .-> events
+
+    orders --> first_order
+    prod_v2 -- "ref(version=2)" --> oip
+    items --> oip
+
+    orders --> dim_orders
+    oip -- "get_column_values → kolumny total_sold_*" --> dim_orders
+    first_order -- "wklejony jako CTE" --> dim_orders
+
+    classDef deadEnd stroke-dasharray: 5 5
+    class events,prod_v1,seed,s_unused deadEnd
+```
+
+Linia przerywana w ramce oznacza ślepą uliczkę: obiekt się buduje, ale nic go nie czyta. `stg_ecommerce__events` i UDF działają obok gałęzi `dim_orders`, bez wpływu na mart. Seed i snapshot są niezależne od modeli.
+
+Podgląd gałęzi z terminala: `uv run dbt ls -s +dim_orders --profiles-dir .` (przodkowie martu) albo `-s stg_ecommerce__orders+` (wszystko, co zależy od modelu).
+
 ## Setup
 
 Wymagane narzędzia: [gcloud CLI](https://cloud.google.com/sdk/docs/install) (krok 1) i [uv](https://docs.astral.sh/uv/) (`brew install uv`, krok 2). Pythona nie trzeba instalować osobno - uv pobierze wersję z `.python-version`.
