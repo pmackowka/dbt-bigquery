@@ -22,6 +22,7 @@ analyses/         # zapytania eksploracyjne (dbt compile, bez materializacji)
 Co z czym łączy się przez `source()` i `ref()`. Krawędzie wygenerowane z `target/manifest.json`. W nawiasie materializacja.
 
 ```mermaid
+%%{init: {"flowchart": {"htmlLabels": false, "padding": 16}}}%%
 flowchart LR
     subgraph src["Źródła: bigquery-public-data.thelook_ecommerce"]
         s_events[(events)]
@@ -37,12 +38,12 @@ flowchart LR
         orders["stg_ecommerce__orders<br/>(table)"]
         items["stg_ecommerce__order_items<br/>(table, kontrakt)"]
         prod_v1["stg_ecommerce__products v1<br/>(table, deprecation 2026-12-31)"]
-        prod_v2["stg_ecommerce__products v2<br/>(table, latest)"]
+        prod_v2["stg_ecommerce__products v2<br/>(table, latest, pin: ref version=2)"]
     end
 
     subgraph int["Intermediate"]
-        first_order["int_ecommerce__first_order_created<br/>(ephemeral)"]
-        oip["int_ecommerce__order_items_products<br/>(table)"]
+        first_order["int_ecommerce__first_order_created<br/>(ephemeral: wklejany jako CTE)"]
+        oip["int_ecommerce__order_items_products<br/>(table, skanowany przez get_column_values)"]
     end
 
     subgraph mart["Marts"]
@@ -51,7 +52,7 @@ flowchart LR
 
     snapshot["snapshot__distribution_centers<br/>(snapshot SCD2)"]
     seed["seed_distribution_centers_new<br/>(seed, brak konsumenta)"]
-    udf{{"UDF get_brand_name<br/>(hook on-run-start)"}}
+    udf{{"UDF get_brand_name<br/>(hook on-run-start,<br/>wołany w SELECT)"}}
 
     s_events --> events
     s_orders --> orders
@@ -59,15 +60,15 @@ flowchart LR
     s_products --> prod_v1
     s_products --> prod_v2
     s_dc --> snapshot
-    udf -. wywołanie w SELECT .-> events
+    udf -.-> events
 
     orders --> first_order
-    prod_v2 -- "ref(version=2)" --> oip
+    prod_v2 --> oip
     items --> oip
 
     orders --> dim_orders
-    oip -- "get_column_values → kolumny total_sold_*" --> dim_orders
-    first_order -- "wklejony jako CTE" --> dim_orders
+    oip --> dim_orders
+    first_order --> dim_orders
 
     classDef deadEnd stroke-dasharray: 5 5
     class events,prod_v1,seed,s_unused deadEnd
