@@ -78,6 +78,65 @@ Linia przerywana w ramce oznacza ślepą uliczkę: obiekt się buduje, ale nic g
 
 Podgląd gałęzi z terminala: `uv run dbt ls -s +dim_orders --profiles-dir .` (przodkowie martu) albo `-s stg_ecommerce__orders+` (wszystko, co zależy od modelu).
 
+## Komendy dbt
+
+Komendy odpalane z katalogu repo, z prefiksem `uv run` (albo bez niego w aktywnym `.venv`). Flaga `--profiles-dir .` nie jest potrzebna: dbt najpierw szuka `profiles.yml` w bieżącym katalogu.
+
+### Podstawowe komendy
+
+| Komenda | Co robi | Na tabelach tego projektu | Baza? |
+|---|---|---|---|
+| `dbt debug` | Sprawdza profil, zmienne i połączenie | czy `BIGQUERY_KEYFILE` i `BIGQUERY_PROJECT` są poprawne | tak |
+| `dbt deps` | Instaluje pakiety z `packages.yml` do `dbt_packages/` | `dbt_utils`, `dbt_expectations` | nie |
+| `dbt parse` | Buduje graf i waliduje YAML, bez SQL-a | szybka kontrola składni; **nie** sprawdza kolumn `total_sold_*` w `dim_orders` | nie |
+| `dbt ls -s +dim_orders` | Wypisuje węzły pasujące do selektora | 6 modeli, od których zależy `dim_orders` | nie |
+| `dbt compile -s dim_orders` | Renderuje Jinja do czystego SQL w `target/compiled/` | widać wygenerowane kolumny per dział i wklejone CTE `first_order_created` | tak |
+| `dbt show -s dim_orders --limit 10` | Wykonuje SELECT modelu i pokazuje wynik, bez zapisu tabeli | podgląd martu przed buildem | tak |
+| `dbt seed` | Ładuje CSV z `seeds/` do tabel | `seed_distribution_centers_new` (2 wiersze) | tak |
+| `dbt snapshot` | Porównuje źródło z historią i dopisuje zmiany (SCD2) | `snapshot__distribution_centers` w `snapshots_project` | tak |
+| `dbt run -s stg_ecommerce__orders` | Buduje modele (tabele, widoki, incremental), **bez testów** | jedna tabela staging | tak |
+| `dbt run -s stg_ecommerce__events --full-refresh` | Buduje incremental od zera, ignorując istniejący stan | po zmianie logiki filtra albo kolumn eventów | tak |
+| `dbt test -s stg_ecommerce__orders` | Uruchamia testy na zbudowanych tabelach | 17 testów, w tym `relationships` z innych modeli wskazujące na zamówienia | tak |
+| `dbt build -s +dim_orders` | seed + snapshot + run + test w kolejności DAG-a, testy **zaraz po** każdym modelu | cała gałąź martu; nieudany test `error` zatrzymuje modele zależne | tak |
+| `dbt source freshness` | Sprawdza świeżość źródeł (`error_after`) | tylko `events` ma zdefiniowaną świeżość; kod wyjścia 1 = dane za stare | tak |
+| `dbt retry` | Powtarza tylko węzły, które padły w ostatnim przebiegu | po awarii nie trzeba budować wszystkiego od nowa | tak |
+| `dbt docs generate` + `dbt docs serve` | Buduje i serwuje dokumentację z lineage i opisami | opisy z `.yml` i `doc('status')` w przeglądarce | tak (katalog) |
+| `dbt run-operation generate_base_model --args '{...}'` | Wywołuje makro ręcznie | szkielet nowego modelu staging dla tabeli źródłowej | tak |
+| `dbt clean` | Usuwa `target/` i `dbt_packages/` | reset artefaktów po dziwnych błędach kompilacji | nie |
+
+### Selektory (`-s`)
+
+| Zapis | Znaczenie | Przykład z tego projektu |
+|---|---|---|
+| `model` | tylko ten węzeł | `-s dim_orders` |
+| `+model` | węzeł i wszystko, od czego zależy | `-s +dim_orders` - staging, intermediate, mart |
+| `model+` | węzeł i wszystko, co od niego zależy | `-s stg_ecommerce__orders+` - zamówienia, `first_order_created`, `dim_orders` |
+| `path:...` | wszystko w folderze | `-s path:models/staging` |
+| `--exclude` | wyklucza węzły | `-s path:models/staging --exclude stg_ecommerce__events` |
+
+### Kolejność pracy
+
+**Dlaczego `build`, a nie `run` + `test`:** `dbt run` buduje wszystko, a dopiero potem `dbt test` sprawdza dane. Zły klucz w `stg_ecommerce__orders` trafia wtedy do `dim_orders`, zanim ktokolwiek to zauważy. `dbt build` testuje każdy model zaraz po zbudowaniu, a test na `error` zatrzymuje modele zależne.
+
+**Zmiana modelu w dev** (np. edycja `int_ecommerce__order_items_products`):
+1. `dbt parse` - czy YAML i graf są poprawne (sekundy, bez bazy).
+2. `dbt compile -s int_ecommerce__order_items_products` - czy SQL wygląda tak, jak zakładasz.
+3. `dbt show -s int_ecommerce__order_items_products --limit 10` - czy wynik ma sens.
+4. `dbt build -s int_ecommerce__order_items_products+` - buduje model **i** `dim_orders` z testami. Model zależny też, bo kontrakt `dim_orders` wykryje zmianę kolumn dopiero przy jego budowie.
+
+**Zmiana w `stg_ecommerce__events`** (model incremental):
+1. `dbt build -s stg_ecommerce__events` - ścieżka incremental (MERGE ostatnich dni).
+2. Zmiana logiki filtra albo usunięcie kolumny wymaga `--full-refresh`: `append_new_columns` nie usunie starej kolumny, a nowa logika nie przeliczy się na historii.
+
+**Przed commitem / PR:**
+1. `dbt build` na dev (całość albo `-s <zmieniony_model>+`). Zielony `dbt parse` nie wystarcza, bo nie widzi kolumn generowanych z danych.
+
+**Przebieg produkcyjny** (orkiestracja, `--target prod`):
+1. `dbt deps`
+2. `dbt source freshness --target prod` - kod wyjścia 1 = stop, nie budujemy na starych danych.
+3. `dbt build --target prod` - seed, snapshot, modele i testy w jednym przebiegu.
+4. Po awarii: `dbt retry --target prod`.
+
 ## Setup
 
 Wymagane narzędzia: [gcloud CLI](https://cloud.google.com/sdk/docs/install) (krok 1) i [uv](https://docs.astral.sh/uv/) (`brew install uv`, krok 2). Pythona nie trzeba instalować osobno - uv pobierze wersję z `.python-version`.
