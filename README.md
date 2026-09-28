@@ -114,6 +114,38 @@ Komendy odpalane z katalogu repo, z prefiksem `uv run` (albo bez niego w aktywny
 | `path:...` | wszystko w folderze | `-s path:models/staging` |
 | `--exclude` | wyklucza węzły | `-s path:models/staging --exclude stg_ecommerce__events` |
 
+### Targety: dev i prod
+
+Target to zestaw ustawień połączenia z `profiles.yml`. Domyślny jest `dev` (`target: dev` w profilu), więc każda komenda bez flagi pracuje na dev.
+
+```bash
+dbt build                              # dev - domyślny target
+dbt build --target prod                # prod - jawnie, dla jednej komendy
+DBT_TARGET=prod dbt build              # prod - przez zmienną środowiskową (np. w CI)
+dbt debug --target prod                # najpierw sprawdź połączenie z prod, dopiero potem build
+```
+
+Przed pierwszym `--target prod` ustaw zmienne prod (krok 3 setupu). Target dev ich nie potrzebuje:
+
+```bash
+export BIGQUERY_PROD_PROJECT="TWOJ_PROJECT_ID_PROD"
+export BIGQUERY_PROD_KEYFILE="$HOME/.gcp/dbt-bigquery-prod.json"
+```
+
+| | dev | prod |
+|---|---|---|
+| Zmienne | `BIGQUERY_PROJECT`, `BIGQUERY_KEYFILE` | `BIGQUERY_PROD_PROJECT`, `BIGQUERY_PROD_KEYFILE` |
+| Dataset modeli | `dbt_dev_project` | `dbt_prod_project` |
+| Wygasanie tabel | po 1h (poza `stg_ecommerce__events`) | brak |
+| `maximum_bytes_billed` | 10 GiB | 100 GiB |
+| Snapshot | `snapshots_project` | `snapshots_project` - **ten sam dataset**, patrz niżej |
+
+Jak dbt wie, który target: `target.name` jest dostępne w Jinja - stąd warunek `{{ 1 if target.name == 'dev' else none }}` przy `hours_to_expiration` w `dbt_project.yml`.
+
+Dwie rzeczy, których przełączenie targetu **nie** załatwia:
+- **Uprawnienia.** Brak zmiennych prod zatrzyma tylko roztargnienie. Jeśli `BIGQUERY_PROD_KEYFILE` wskaże klucz konta dev, a to konto ma role w projekcie prod, zapis przejdzie. Realną granicą jest IAM: osobny projekt GCP dla prod i konto dev bez ról w tym projekcie.
+- **Snapshot.** `target_schema='snapshots_project'` nie dostaje prefiksu targetu, więc przy jednym projekcie GCP dev i prod piszą do tej samej tabeli historii. Rozdziela je dopiero osobny projekt GCP dla prod.
+
 ### Kolejność pracy
 
 **Dlaczego `build`, a nie `run` + `test`:** `dbt run` buduje wszystko, a dopiero potem `dbt test` sprawdza dane. Zły klucz w `stg_ecommerce__orders` trafia wtedy do `dim_orders`, zanim ktokolwiek to zauważy. `dbt build` testuje każdy model zaraz po zbudowaniu, a test na `error` zatrzymuje modele zależne.
