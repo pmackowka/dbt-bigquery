@@ -260,3 +260,7 @@ dbt build --profiles-dir . -s +dim_orders   # albo tylko mart i wszystko, od cze
 Pełne notatki merytoryczne z pracy nad tym projektem (setup, warstwy modeli, testy, kontrakty, snapshoty, Jinja/makra) są w moim prywatnym repo wiedzy: [dbt-Kompletny-Przewodnik-BigQuery.md](https://github.com/pmackowka/knowledge-base/blob/main/wiki/Software/dbt/dbt-Kompletny-Przewodnik-BigQuery.md).
 
 Ten link **działa tylko na moim koncie GitHub** — repo jest prywatne i takie zostanie. Dla każdego innego zwraca 404, to celowe, nie błąd.
+
+## Licencja
+
+Własny kod i dokumentacja — [MIT](LICENSE). Fragmenty pochodzące z projektu szkoleniowego, na którym bazuje ten projekt pozostają własnością ich autorów i podlegają ich warunkom; licencja MIT ich nie obejmuje.
