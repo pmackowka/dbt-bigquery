@@ -263,4 +263,4 @@ Ten link **działa tylko na moim koncie GitHub** — repo jest prywatne i takie 
 
 ## Licencja
 
-Własny kod i dokumentacja — [MIT](LICENSE). Fragmenty pochodzące z projektu szkoleniowego, na którym bazuje ten projekt pozostają własnością ich autorów i podlegają ich warunkom; licencja MIT ich nie obejmuje.
+Własny kod i dokumentacja — [MIT](LICENSE). Fragmenty pochodzące z projektu szkoleniowego, na którym bazuje ten projekt, pozostają własnością ich autorów i podlegają ich warunkom; licencja MIT ich nie obejmuje.
