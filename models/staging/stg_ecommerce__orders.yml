@@ -1,6 +1,11 @@
 # Dokumentacja + testy dla stg_ecommerce__orders. order_id: własny test primary_key (not_null +
 # unique). where: w config testuje tylko podzbiór, np. returned_at NOT NULL tylko dla 'Returned'.
 # Testy bez jawnego severity są na warn (default projektu) - czyli tylko wpis w logu, nic nie blokują.
+# Pochodzenie testów - tag w komentarzu przy każdym teście:
+#   [natywny dbt]      wbudowany w dbt-core (not_null, unique, accepted_values, relationships)
+#   [dbt_utils]        pakiet dbt-labs/dbt_utils - wywołanie z prefiksem dbt_utils.
+#   [dbt_expectations] pakiet metaplane/dbt_expectations - wywołanie z prefiksem dbt_expectations.
+#   [własny]           generic test z tests/generic/ (primary_key) - bez prefiksu, jak natywny
 version: 2
 
 models:
@@ -8,7 +13,7 @@ models:
     columns:
       - name: order_id
         tests:
-          - primary_key:
+          - primary_key:  # [własny]
               config:
                 severity: error
 
@@ -17,24 +22,24 @@ models:
       # Reguła: error dla kolumn pod joinami/agregacjami, warn dla reguł biznesowych niżej.
       - name: user_id
         tests:
-          - not_null:
+          - not_null:  # [natywny dbt]
               config:
                 severity: error
 
       - name: created_at
         description: "When the order was created"
         tests:
-          - not_null:
+          - not_null:  # [natywny dbt]
               config:
                 severity: error
 
       - name: returned_at
         description: "When the order was returned"
         tests:
-          - not_null:
+          - not_null:  # [natywny dbt]
               config:
                 where: "status = 'Returned'"
-          - dbt_utils.expression_is_true:
+          - dbt_utils.expression_is_true:  # [dbt_utils]
               arguments:
                 expression: ">= delivered_at"
               config:
@@ -43,10 +48,10 @@ models:
       - name: delivered_at
         description: "When the order was delivered"
         tests:
-          - not_null:
+          - not_null:  # [natywny dbt]
               config:
                 where: "returned_at IS NOT NULL OR status = 'Complete'"
-          - dbt_utils.expression_is_true:
+          - dbt_utils.expression_is_true:  # [dbt_utils]
               arguments:
                 expression: ">= shipped_at"
               config:
@@ -55,10 +60,10 @@ models:
       - name: shipped_at
         description: "When the order was shipped"
         tests:
-          - not_null:
+          - not_null:  # [natywny dbt]
               config:
                 where: "delivered_at IS NOT NULL OR status = 'Shipped'"
-          - dbt_utils.expression_is_true:
+          - dbt_utils.expression_is_true:  # [dbt_utils]
               arguments:
                 expression: ">= created_at"
               config:
@@ -70,8 +75,8 @@ models:
         # w jednym miejscu. DRY tylko w repo: persist_docs kopiuje tekst do metadanych KAŻDEJ tabeli,
         # więc po zmianie .md oba modele trzeba przebudować, żeby opisy w BigQuery się zgadzały.
         tests:
-          - not_null
-          - accepted_values:
+          - not_null  # [natywny dbt]
+          - accepted_values:  # [natywny dbt]
               arguments:
                 values:
                   - Processing
@@ -87,7 +92,7 @@ models:
       - name: num_items_ordered
         description: "Number of items in the order"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0

@@ -1,5 +1,10 @@
 # Dokumentacja, testy i typy dla seed_distribution_centers_new.csv. Seed ładuje dbt seed albo
 # dbt build (dbt run go pomija), testuje się go jak zwykły model.
+# Pochodzenie testów - tag w komentarzu przy każdym teście:
+#   [natywny dbt]      wbudowany w dbt-core (not_null, unique, accepted_values, relationships)
+#   [dbt_utils]        pakiet dbt-labs/dbt_utils - wywołanie z prefiksem dbt_utils.
+#   [dbt_expectations] pakiet metaplane/dbt_expectations - wywołanie z prefiksem dbt_expectations.
+#   [własny]           generic test z tests/generic/ (primary_key) - bez prefiksu, jak natywny
 version: 2
 
 seeds:
@@ -14,7 +19,7 @@ seeds:
       CSV, dopóki nie zaczną płynąć z systemu źródłowego - nie kopia ani nadpisanie źródła.
     # Test na całym seedzie: dokładnie 2 wiersze - łapie przypadkowe nadpisanie CSV przy edycji.
     tests:
-      - dbt_expectations.expect_table_row_count_to_equal:
+      - dbt_expectations.expect_table_row_count_to_equal:  # [dbt_expectations]
           arguments:
             value: 2
 
@@ -22,8 +27,8 @@ seeds:
     columns:
       - name: id
         tests:
-          - not_null
-          - unique
+          - not_null  # [natywny dbt]
+          - unique  # [natywny dbt]
       - name: name
         description: "Distribution center name"
       - name: latitude

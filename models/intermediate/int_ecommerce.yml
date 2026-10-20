@@ -2,6 +2,11 @@
 # definicję kolumny (opis + test) do drugiego modelu - DRY na poziomie parsera YAML, dbt nic o niej nie wie.
 # Test na int_ecommerce__first_order_created działa mimo materializacji ephemeral: dbt wkleja logikę
 # modelu jako CTE do SQL-a testu, tak jak do każdego innego węzła, który go ref()-uje.
+# Pochodzenie testów - tag w komentarzu przy każdym teście:
+#   [natywny dbt]      wbudowany w dbt-core (not_null, unique, accepted_values, relationships)
+#   [dbt_utils]        pakiet dbt-labs/dbt_utils - wywołanie z prefiksem dbt_utils.
+#   [dbt_expectations] pakiet metaplane/dbt_expectations - wywołanie z prefiksem dbt_expectations.
+#   [własny]           generic test z tests/generic/ (primary_key) - bez prefiksu, jak natywny
 
 version: 2  # Wersja schematu pliku YAML dla dokumentacji DBT
 
@@ -13,60 +18,60 @@ models:  # Sekcja definiująca modele DBT opisane w tym pliku
 
       - name: order_item_id  # Kolumna z unikalnym ID pozycji zamówienia
         tests:
-          - not_null:        # Wartość nie może być NULL
+          - not_null:  # [natywny dbt] Wartość nie może być NULL
               config:
                 severity: error
-          - unique:          # Wartości muszą być unikalne
+          - unique:  # [natywny dbt] Wartości muszą być unikalne
               config:
                 severity: error
 
       - name: order_id  # ID zamówienia
         tests:
-          - not_null  # Wartość obowiązkowa
+          - not_null  # [natywny dbt] Wartość obowiązkowa
 
       - &user_id  # Definicja kotwicy YAML — można ją potem wykorzystać wielokrotnie
         name: user_id  # ID użytkownika
         description: "Unique identifier for a user"  # Opis kolumny
         tests:
-          - not_null  # Wartość obowiązkowa
+          - not_null  # [natywny dbt] Wartość obowiązkowa
 
       - name: product_id  # ID produktu
         tests:
-          - not_null
+          - not_null  # [natywny dbt]
 
       - name: item_sale_price  # Cena sprzedaży pozycji
         description: "How much the item sold for"
         tests:
-          - not_null
+          - not_null  # [natywny dbt]
 
       - name: product_department  # Dział, np. odzież męska/damska
         description: "Whether the item is Menswear or Womenswear"
         tests:
-          - not_null
+          - not_null  # [natywny dbt]
 
       - name: product_cost  # Koszt zakupu produktu przez firmę
         description: "How much the product cost the business to purchase"
         tests:
-          - not_null
+          - not_null  # [natywny dbt]
 
       - name: product_retail_price  # Cena detaliczna w sklepie
         description: "How much the product retails for on the online store"
         tests:
-          - not_null
+          - not_null  # [natywny dbt]
 
       - name: item_profit  # Zysk z pozycji (sprzedaż - koszt)
         description: "item_sale_price minus product_cost"
         tests:
-          - not_null
-          - dbt_utils.expression_is_true:  # Test sprawdzający zgodność z wyrażeniem matematycznym
+          - not_null  # [natywny dbt]
+          - dbt_utils.expression_is_true:  # [dbt_utils] Test sprawdzający zgodność z wyrażeniem matematycznym
               arguments:
                 expression: "= (item_sale_price - product_cost)"
 
       - name: item_discount  # Rabat (cena detaliczna - sprzedażowa)
         description: "product_retail_price minus item_sale_price"
         tests:
-          - not_null
-          - dbt_utils.expression_is_true:
+          - not_null  # [natywny dbt]
+          - dbt_utils.expression_is_true:  # [dbt_utils]
               arguments:
                 expression: "= (product_retail_price - item_sale_price)"
 

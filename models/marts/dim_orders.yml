@@ -3,6 +3,11 @@
 # tabelę - IAM na datasecie BigQuery (albo grants); kto ją buduje - IAM konta z profiles.yml; kto
 # zmienia kod - git (.github/CODEOWNERS + branch protection). group powtórzony tu mimo +group na
 # folderze marts/ w dbt_project.yml - dla czytelności.
+# Pochodzenie testów - tag w komentarzu przy każdym teście:
+#   [natywny dbt]      wbudowany w dbt-core (not_null, unique, accepted_values, relationships)
+#   [dbt_utils]        pakiet dbt-labs/dbt_utils - wywołanie z prefiksem dbt_utils.
+#   [dbt_expectations] pakiet metaplane/dbt_expectations - wywołanie z prefiksem dbt_expectations.
+#   [własny]           generic test z tests/generic/ (primary_key) - bez prefiksu, jak natywny
 version: 2
 
 groups:
@@ -55,10 +60,10 @@ models:
         data_type: INTEGER
         tests:
           # Generic test z tests/generic/test_primary_key.sql - dbt sam przekazuje model i kolumnę.
-          - primary_key:
+          - primary_key:  # [własny]
               config:
                 severity: error
-          - relationships:
+          - relationships:  # [natywny dbt]
               arguments:
                 to: ref('stg_ecommerce__orders')
                 field: order_id
@@ -75,7 +80,7 @@ models:
         tests:
           # Nowa logika policzona w TYM modelu (makro is_weekend), nie przepisana ze staging -
           # więc test tutaj, zgodnie z podziałem opisanym niżej przy agregatach.
-          - not_null
+          - not_null  # [natywny dbt]
 
       - name: order_shipped_at
         data_type: TIMESTAMP
@@ -103,8 +108,8 @@ models:
         data_type: FLOAT64
         description: "Sum of item_sale_price for the whole order"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0
 
@@ -112,8 +117,8 @@ models:
         data_type: FLOAT64
         description: "Sum of product_cost for the whole order"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0
 
@@ -121,8 +126,8 @@ models:
         data_type: FLOAT64
         description: "Sum of (item_sale_price - product_cost) for the whole order"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0
 
@@ -130,8 +135,8 @@ models:
         data_type: FLOAT64
         description: "Sum of (product_retail_price - item_sale_price) for the whole order"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0
 
@@ -139,8 +144,8 @@ models:
         data_type: FLOAT64
         description: "Sum of item_sale_price for items in the Menswear department for this order"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0
 
@@ -148,8 +153,8 @@ models:
         data_type: FLOAT64
         description: "Sum of item_sale_price for items in the Womenswear department for this order"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0
 
@@ -158,7 +163,7 @@ models:
         data_type: INTEGER
         description: "How many days there were between a user's first order and this one"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0

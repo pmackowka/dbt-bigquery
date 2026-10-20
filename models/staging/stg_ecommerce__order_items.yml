@@ -1,6 +1,11 @@
 # Dokumentacja + testy + kontrakt dla stg_ecommerce__order_items. Kontrakt sprawdza STRUKTURĘ
 # (kolumny, typy, constraints) przy budowie - rozjazd = build pada od razu. Testy sprawdzają DANE
 # po zbudowaniu. Dwa uzupełniające się mechanizmy.
+# Pochodzenie testów - tag w komentarzu przy każdym teście:
+#   [natywny dbt]      wbudowany w dbt-core (not_null, unique, accepted_values, relationships)
+#   [dbt_utils]        pakiet dbt-labs/dbt_utils - wywołanie z prefiksem dbt_utils.
+#   [dbt_expectations] pakiet metaplane/dbt_expectations - wywołanie z prefiksem dbt_expectations.
+#   [własny]           generic test z tests/generic/ (primary_key) - bez prefiksu, jak natywny
 version: 2
 
 models:
@@ -13,10 +18,10 @@ models:
       - name: order_item_id
         # Test dbt - uruchamia się PO zbudowaniu modelu
         tests:
-          - not_null:
+          - not_null:  # [natywny dbt]
               config:
                 severity: error
-          - unique:
+          - unique:  # [natywny dbt]
               config:
                 severity: error
         # Kontrakt - wymuszany PRZED zbudowaniem modelu
@@ -29,8 +34,8 @@ models:
       - name: order_id
         data_type: INTEGER
         tests:
-          - not_null
-          - relationships:
+          - not_null  # [natywny dbt]
+          - relationships:  # [natywny dbt]
               arguments:
                 to: ref('stg_ecommerce__orders')
                 field: order_id
@@ -38,13 +43,13 @@ models:
       - name: user_id
         data_type: INTEGER
         tests:
-          - not_null
+          - not_null  # [natywny dbt]
 
       - name: product_id
         data_type: INTEGER
         tests:
-          - not_null
-          - relationships:
+          - not_null  # [natywny dbt]
+          - relationships:  # [natywny dbt]
               arguments:
                 to: ref('stg_ecommerce__products')
                 field: product_id
@@ -53,7 +58,7 @@ models:
         data_type: FLOAT64
         description: "How much the item sold for"
         tests:
-          - not_null
-          - dbt_expectations.expect_column_values_to_be_between:
+          - not_null  # [natywny dbt]
+          - dbt_expectations.expect_column_values_to_be_between:  # [dbt_expectations]
               arguments:
                 min_value: 0

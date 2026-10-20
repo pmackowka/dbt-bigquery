@@ -1,5 +1,10 @@
 # Testy jedynego modelu incremental. Po przestoju dłuższym niż margines okien (patrz .sql) MERGE
 # wstawi powtórzony event drugi raz - build nie zgłosi błędu, zgłosi go dopiero ten test.
+# Pochodzenie testów - tag w komentarzu przy każdym teście:
+#   [natywny dbt]      wbudowany w dbt-core (not_null, unique, accepted_values, relationships)
+#   [dbt_utils]        pakiet dbt-labs/dbt_utils - wywołanie z prefiksem dbt_utils.
+#   [dbt_expectations] pakiet metaplane/dbt_expectations - wywołanie z prefiksem dbt_expectations.
+#   [własny]           generic test z tests/generic/ (primary_key) - bez prefiksu, jak natywny
 version: 2
 
 models:
@@ -10,9 +15,9 @@ models:
         description: "Unique identifier of the event - unique_key of the incremental MERGE"
         tests:
           # error, nie warn: duplikat zawyża każdą metrykę z eventów - build ma stanąć, nie ostrzec.
-          - unique:
+          - unique:  # [natywny dbt]
               config:
                 severity: error
-          - not_null:
+          - not_null:  # [natywny dbt]
               config:
                 severity: error
