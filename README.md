@@ -143,7 +143,7 @@ export BIGQUERY_PROD_KEYFILE="$HOME/.gcp/dbt-bigquery-prod.json"
 Jak dbt wie, który target: `target.name` jest dostępne w Jinja - stąd warunek `{{ 1 if target.name == 'dev' else none }}` przy `hours_to_expiration` w `dbt_project.yml`.
 
 Dwie rzeczy, których przełączenie targetu **nie** załatwia:
-- **Uprawnienia.** Brak zmiennych prod zatrzyma tylko roztargnienie. Jeśli `BIGQUERY_PROD_KEYFILE` wskaże klucz konta dev, a to konto ma role w projekcie prod, zapis przejdzie. Realną granicą jest IAM: osobny projekt GCP dla prod i konto dev bez ról w tym projekcie.
+- **Uprawnienia.** Brakująca zmienna prod chroni tylko przed pomyłką: odruchowe `--target prod` padnie przy parsowaniu profilu, ale tylko dopóki zmienne nie są wyeksportowane w powłoce (`~/.zshrc`, direnv, poprzedni deploy w tym samym terminalu). dbt nie sprawdza, czyj klucz wskazuje `BIGQUERY_PROD_KEYFILE` — jeśli to klucz konta dev z rolami w prod, zapis przejdzie. Realną granicą jest IAM: najczyściej osobny projekt GCP dla prod i konto dev bez ról w nim; w jednym projekcie — role nadane na poziomie datasetu, nie projektu (rola projektowa dziedziczy się na wszystkie datasety).
 - **Snapshot.** `target_schema='snapshots_project'` nie dostaje prefiksu targetu, więc przy jednym projekcie GCP dev i prod piszą do tej samej tabeli historii. Rozdziela je dopiero osobny projekt GCP dla prod.
 
 ### Kolejność pracy
