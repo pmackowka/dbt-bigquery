@@ -255,6 +255,32 @@ dbt build --profiles-dir . -s +dim_orders   # albo tylko mart i wszystko, od cze
 
 Świeżości źródeł `dbt build` nie sprawdza. Żeby nie budować na starych danych, odpal najpierw `dbt source freshness --profiles-dir .` - kod wyjścia 1 (przekroczone `error_after`) oznacza: nie odpalaj builda.
 
+## Rozszerzenie rozważane: Semantic Layer (MetricFlow)
+
+**Status: niewdrożone.** Gotowość sprawdzona na kopii repo (2026-10-24): `dbt-metricflow` 0.15.0 instaluje się bez zmiany wersji dbt-core 1.12 / dbt-bigquery 1.12, model semantyczny na `dim_orders` z 5 metrykami przechodzi `dbt parse` i `mf validate-configs`, `mf query --explain` kompiluje poprawny SQL dla BigQuery. Niesprawdzone: wykonanie na żywym BigQuery.
+
+**Czym jest model semantyczny.** Definicja metryk jako kod: YAML nad istniejącym modelem dbt (encje, wymiary, miary, metryki). SQL metryki pisze MetricFlow w chwili zapytania, nie człowiek. Przykład: `aov` = `revenue / orders` liczone na poziomie każdej grupy (`SUM / COUNT DISTINCT`), a nie jako średnia z dziennych średnich. Jedna definicja w repo, przegląd w PR, historia w gicie — zamiast osobnego calculated field w każdym dashboardzie.
+
+**Co działa w dbt Core, a co wymaga dbt platform (dawniej dbt Cloud):**
+
+| Funkcja | dbt Core + MetricFlow | dbt platform (Starter, Enterprise) |
+|---|---|---|
+| Definicje w YAML, walidacja, `mf query` w terminalu | ✅ (MetricFlow ≥ 0.209 na licencji Apache 2.0) | ✅ |
+| Semantic Layer API (JDBC, GraphQL) dla narzędzi BI | ❌ | ✅ |
+| Saved queries + exports (zapis metryk do tabel w BigQuery) | ❌ | ✅ |
+| Narzędzia Semantic Layer w serwerze MCP dla LLM | ❌ | ✅ |
+
+Bez dbt platform metryki istnieją tylko w repo i w terminalu — żadne BI ani LLM ich stamtąd nie odczyta.
+
+**Które BI czytają metryki natywnie** (wg [listy integracji dbt](https://docs.getdbt.com/docs/cloud-integrations/avail-sl-integrations)): Tableau, Power BI, Google Sheets, Excel, Hex, Mode, Omni, Sigma (preview), Klipfolio PowerMetrics, Push.ai, Steep, Dot. Na liście **nie ma** Looker Studio ani Lookera (Looker ma własną warstwę semantyczną — LookML). Potrzebne: konto dbt platform Starter lub wyżej, skonfigurowany Semantic Layer i service token z uprawnieniem *Semantic Layer Only*. Konfiguracja w BI jest jednorazowa (połączenie), potem każda nowa metryka z repo pojawia się w BI po deployu. BI widzi przez to połączenie metryki i wymiary, nie surowe tabele.
+
+**LLM a warstwa semantyczna.** Semantic Layer nie rozumie języka naturalnego — przyjmuje ustrukturyzowane zapytanie (`metrics`, `group_by`, `where`). Tekst na takie zapytanie tłumaczy LLM. Rekomendowana przez dbt ścieżka: LLM → [dbt MCP server](https://docs.getdbt.com/docs/dbt-ai/about-mcp) (narzędzia Semantic Layer) → MetricFlow → BigQuery. Nie sprawdzałem, czy funkcje AI wbudowane w BI (np. w Tableau) korzystają z metryk dbt, czy z własnego modelu danych BI.
+
+**Co warstwa semantyczna daje przy LLM, a czego nie:**
+- **Ogranicza halucynacje definicji.** LLM wybiera metrykę z katalogu zamiast pisać SQL od zera, więc nie wymyśli własnego „AOV” ani złego joina. Benchmark dbt Labs ([2026](https://docs.getdbt.com/blog/semantic-layer-vs-text-to-sql-2026), 11 pytań × 20 przebiegów): 98–100% poprawnych odpowiedzi przez Semantic Layer vs 84–90% przez text-to-SQL. Pytanie spoza modelu kończy się odmową, a nie błędną liczbą.
+- **Nie chroni przed złą interpretacją pytania.** LLM nadal może wybrać niewłaściwą metrykę, wymiar albo filtr — deterministyczny jest SQL, nie rozumienie intencji.
+- **To nie jest granica bezpieczeństwa.** Jeśli LLM lub BI ma równolegle zwykłe połączenie z BigQuery, może ominąć metryki i pisać SQL po tabelach. Granicą jest zakres tokenu (*Semantic Layer Only*) i IAM — ta sama zasada co przy [targetach dev/prod](#targety-dev-i-prod).
+
 ## Notatki (prywatne, tylko dla mnie)
 
 Pełne notatki merytoryczne z pracy nad tym projektem (setup, warstwy modeli, testy, kontrakty, snapshoty, Jinja/makra) są w moim prywatnym repo wiedzy: [dbt-Kompletny-Przewodnik-BigQuery.md](https://github.com/pmackowka/knowledge-base/blob/main/wiki/Software/dbt/dbt-Kompletny-Przewodnik-BigQuery.md).
