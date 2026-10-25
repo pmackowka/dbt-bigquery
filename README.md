@@ -1,5 +1,9 @@
 # dbt na BigQuery — analityka e-commerce
 
+## TODO
+
+- [ ] **Warstwa semantyczna (MetricFlow)** — wdrożyć metryki (przychód, konwersja, AOV) jako jeden standard dla BI. Stan i ograniczenia → [Rozszerzenie rozważane: Semantic Layer](#rozszerzenie-rozważane-semantic-layer-metricflow).
+
 Projekt dbt Core zbudowany na bazie projektu szkoleniowego i rozszerzony o własne dodatki.
 Źródło danych: `bigquery-public-data.thelook_ecommerce` (publiczny dataset BigQuery).
 

@@ -1,5 +1,9 @@
 # CLAUDE.md — dbt-bigquery
 
+## TODO
+
+- [ ] Wdrożyć warstwę semantyczną (MetricFlow) — stan i ograniczenia w README, sekcja „Rozszerzenie rozważane: Semantic Layer”.
+
 Projekt dbt Core (BigQuery) zbudowany na bazie projektu szkoleniowego, rozszerzony o własne dodatki. Dataset źródłowy: `bigquery-public-data.thelook_ecommerce`. Pełny opis i lista własnych rozszerzeń ponad materiał źródłowy → [README.md](README.md).
 
 ## Setup i komendy
