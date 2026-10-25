@@ -89,15 +89,15 @@ Komendy odpalane z katalogu repo, z prefiksem `uv run` (albo bez niego w aktywny
 | `dbt debug` | Sprawdza profil, zmienne i połączenie | czy `BIGQUERY_KEYFILE` i `BIGQUERY_PROJECT` są poprawne | tak |
 | `dbt deps` | Instaluje pakiety z `packages.yml` do `dbt_packages/` | `dbt_utils`, `dbt_expectations` | nie |
 | `dbt parse` | Buduje graf i waliduje YAML, bez SQL-a | szybka kontrola składni; **nie** sprawdza kolumn `total_sold_*` w `dim_orders` | nie |
-| `dbt ls -s +dim_orders` | Wypisuje węzły pasujące do selektora | 6 modeli, od których zależy `dim_orders` | nie |
+| `dbt ls -s +dim_orders` | Wypisuje węzły pasujące do selektora | `dim_orders` i 5 modeli, od których zależy (3 staging, 2 intermediate) | nie |
 | `dbt compile -s dim_orders` | Renderuje Jinja do czystego SQL w `target/compiled/` | widać wygenerowane kolumny per dział i wklejone CTE `first_order_created` | tak |
 | `dbt show -s dim_orders --limit 10` | Wykonuje SELECT modelu i pokazuje wynik, bez zapisu tabeli | podgląd martu przed buildem | tak |
 | `dbt seed` | Ładuje CSV z `seeds/` do tabel | `seed_distribution_centers_new` (2 wiersze) | tak |
-| `dbt snapshot` | Porównuje źródło z historią i dopisuje zmiany (SCD2) | `snapshot__distribution_centers` w `snapshots_project` | tak |
+| `dbt snapshot` | Porównuje źródło z historią i dopisuje zmiany (SCD2). Bez `-s` uruchamia **każdy** blok `{% snapshot %}` z `snapshots/` (liczy się nazwa bloku, nie pliku) | `snapshot__distribution_centers` w `snapshots_project` - jedyny snapshot w projekcie; czyta źródło `distribution_centers`, nie seed | tak |
 | `dbt run -s stg_ecommerce__orders` | Buduje modele (tabele, widoki, incremental), **bez testów** | jedna tabela staging | tak |
 | `dbt run -s stg_ecommerce__events --full-refresh` | Buduje incremental od zera, ignorując istniejący stan | po zmianie logiki filtra albo kolumn eventów | tak |
 | `dbt test -s stg_ecommerce__orders` | Uruchamia testy na zbudowanych tabelach | 17 testów, w tym `relationships` z innych modeli wskazujące na zamówienia | tak |
-| `dbt build -s +dim_orders` | seed + snapshot + run + test w kolejności DAG-a, testy **zaraz po** każdym modelu | cała gałąź martu; nieudany test `error` zatrzymuje modele zależne | tak |
+| `dbt build -s +dim_orders` | run + test w kolejności DAG-a, testy **zaraz po** każdym modelu. Seed i snapshot tylko wtedy, gdy są przodkami wybranego węzła - tu nie są | cała gałąź martu (bez seeda i snapshotu); nieudany test `error` zatrzymuje modele zależne | tak |
 | `dbt source freshness` | Sprawdza świeżość źródeł (`error_after`) | tylko `events` ma zdefiniowaną świeżość; kod wyjścia 1 = dane za stare | tak |
 | `dbt retry` | Powtarza tylko węzły, które padły w ostatnim przebiegu | po awarii nie trzeba budować wszystkiego od nowa | tak |
 | `dbt docs generate` + `dbt docs serve` | Buduje i serwuje dokumentację z lineage i opisami | opisy z `.yml` i `doc('status')` w przeglądarce | tak (katalog) |
