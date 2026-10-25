@@ -1,6 +1,0 @@
-# Templater jinja nie zna bloku {% snapshot %} - snapshot nie przejdzie parsowania.
-snapshots/
-# Makra to Jinja, nie SQL: lint sprawdzany jest tam, gdzie się renderują (w modelach).
-macros/
-dbt_packages/
-target/

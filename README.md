@@ -2,7 +2,7 @@
 
 ## TODO
 
-- [ ] **Warstwa semantyczna (MetricFlow)** — wdrożyć metryki (przychód, konwersja, AOV) jako jeden standard dla BI. Stan i ograniczenia → [Rozszerzenie rozważane: Semantic Layer](#rozszerzenie-rozważane-semantic-layer-metricflow).
+- [ ] **Warstwa semantyczna (MetricFlow)** — wdrożyć metryki (przychód, konwersja, AOV) jako jeden standard dla BI. Zakres i ograniczenia → [Planowane rozszerzenie: Semantic Layer](#planowane-rozszerzenie-semantic-layer-metricflow).
 
 Projekt dbt Core zbudowany na bazie projektu szkoleniowego i rozszerzony o własne dodatki.
 Źródło danych: `bigquery-public-data.thelook_ecommerce` (publiczny dataset BigQuery).
@@ -173,12 +173,6 @@ Dwie rzeczy, których przełączenie targetu **nie** załatwia:
 3. `dbt build --target prod` - seed, snapshot, modele i testy w jednym przebiegu.
 4. Po awarii: `dbt retry --target prod`.
 
-## CI/CD
-
-GitHub Actions: lint SQL i `dbt parse` na każdym PR (bez poświadczeń), Slim CI (`dbt build --select state:modified+ --defer`) w datasecie `ci_pr_<nr>`, deploy na prod po merge'u z bramką `dbt source freshness`. Logowanie do GCP przez Workload Identity Federation — bez kluczy JSON. Joby wymagające GCP pomijają się, dopóki nie ustawisz zmiennych w GitHubie.
-
-Architektura, konfiguracja GCP i GitHuba krok po kroku, pułapki i rekomendacje: [docs/ci-cd.md](docs/ci-cd.md).
-
 ## Setup
 
 Wymagane narzędzia: [gcloud CLI](https://cloud.google.com/sdk/docs/install) (krok 1) i [uv](https://docs.astral.sh/uv/) (`brew install uv`, krok 2). Pythona nie trzeba instalować osobno - uv pobierze wersję z `.python-version`.
@@ -265,9 +259,9 @@ dbt build --profiles-dir . -s +dim_orders   # albo tylko mart i wszystko, od cze
 
 Świeżości źródeł `dbt build` nie sprawdza. Żeby nie budować na starych danych, odpal najpierw `dbt source freshness --profiles-dir .` - kod wyjścia 1 (przekroczone `error_after`) oznacza: nie odpalaj builda.
 
-## Rozszerzenie rozważane: Semantic Layer (MetricFlow)
+## Planowane rozszerzenie: Semantic Layer (MetricFlow)
 
-**Status: niewdrożone.** Gotowość sprawdzona na kopii repo (2026-10-24): `dbt-metricflow` 0.15.0 instaluje się bez zmiany wersji dbt-core 1.12 / dbt-bigquery 1.12, model semantyczny na `dim_orders` z 5 metrykami przechodzi `dbt parse` i `mf validate-configs`, `mf query --explain` kompiluje poprawny SQL dla BigQuery. Niesprawdzone: wykonanie na żywym BigQuery.
+**Status: do zrobienia w przyszłości** (patrz [TODO](#todo)). W repo nie ma jeszcze modeli semantycznych ani metryk. Zakres: model semantyczny na `dim_orders` (time spine, encja zamówienia, wymiary czasu i statusu) i metryki: przychód, liczba zamówień, AOV, marża; konwersja wymaga drugiego modelu semantycznego na `stg_ecommerce__events`. Zgodność wersji sprawdzona 2026-10-24: `dbt-metricflow` 0.15.0 instaluje się bez zmiany wersji dbt-core 1.12 / dbt-bigquery 1.12.
 
 **Czym jest model semantyczny.** Definicja metryk jako kod: YAML nad istniejącym modelem dbt (encje, wymiary, miary, metryki). SQL metryki pisze MetricFlow w chwili zapytania, nie człowiek. Przykład: `aov` = `revenue / orders` liczone na poziomie każdej grupy (`SUM / COUNT DISTINCT`), a nie jako średnia z dziennych średnich. Jedna definicja w repo, przegląd w PR, historia w gicie — zamiast osobnego calculated field w każdym dashboardzie.
 
