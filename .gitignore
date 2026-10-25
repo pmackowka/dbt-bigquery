@@ -6,6 +6,8 @@ logs/
 
 # Poświadczenia — w repo tylko profiles.yml.example
 profiles.yml
+# Wyjątek: profil CI nie ma żadnego sekretu (method: oauth + env_var, logowanie przez WIF).
+!ci/profiles.yml
 service_account.json
 *.keyfile.json
 

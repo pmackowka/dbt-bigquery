@@ -1,0 +1,81 @@
+# CD po merge do main: bramka świeżości -> dbt build na prod -> publikacja manifestu do GCS.
+# Manifest to "stan prod", z którym Slim CI w ci.yml porównuje kolejne PR-y.
+# Opis mechanizmu i konfiguracji GCP/GitHub: docs/ci-cd.md
+name: cd
+
+on:
+  push:
+    branches: [main]
+  # Ręczne uruchomienie z zakładki Actions - m.in. pierwszy deploy, który publikuje manifest.
+  workflow_dispatch:
+  # Harmonogram to NIE jest CD (patrz docs/ci-cd.md, sekcja 6). Jeśli go włączysz, environment
+  # prod z wymaganym zatwierdzeniem zatrzyma każdy nocny przebieg w oczekiwaniu na kliknięcie.
+  # schedule:
+  #   - cron: "0 5 * * *"  # UTC
+
+# Dwa deploye nigdy równolegle; nowy czeka na koniec poprzedniego, zamiast go przerwać w połowie.
+concurrency:
+  group: prod
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DBT_PROFILES_DIR: ci
+  PYTHONWARNINGS: ignore::FutureWarning
+
+jobs:
+  deploy:
+    # Dopóki GCP i GitHub nie są skonfigurowane (docs/ci-cd.md), job się pomija zamiast padać
+    # na każdym pushu do main. Zmienna repozytorium, bo zmienne environment nie są tu jeszcze znane.
+    if: vars.GCP_WIF_PROVIDER != ''
+    runs-on: ubuntu-latest
+    # Environment prod: wymagane zatwierdzenie + tylko gałąź main. WIF wpuszcza na konto
+    # sa-dbt-prod wyłącznie joby z tym environment (subject ...:environment:prod).
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      BIGQUERY_PROD_PROJECT: ${{ vars.GCP_PROJECT_PROD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+
+      - run: uv sync --locked
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SA_PROD }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - run: uv run dbt deps
+
+      - name: Bramka świeżości źródeł
+        # Kod wyjścia 1 przy przekroczonym error_after (24h dla events) - job staje i build się nie
+        # odpala. warn_after (12h) tylko loguje. Uwaga: w dbt 1.12 freshness odpala też hook
+        # on-run-start (flaga source_freshness_run_project_hooks), więc tworzy UDF get_brand_name.
+        run: uv run dbt source freshness --target prod
+
+      - name: dbt build na prod
+        run: uv run dbt build --target prod
+
+      - name: Publikacja manifestu (stan dla Slim CI)
+        # Dopiero po udanym buildzie: manifest z nieudanego deployu opisywałby tabele, których nie ma.
+        run: gcloud storage cp target/manifest.json "gs://${{ vars.GCS_MANIFEST_BUCKET }}/prod/manifest.json"
+
+      - name: Artefakty dbt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dbt-prod-${{ github.run_id }}
+          path: |
+            target/run_results.json
+            target/sources.json
+            target/manifest.json
+            logs/dbt.log
+          if-no-files-found: ignore

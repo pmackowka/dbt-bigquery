@@ -169,6 +169,12 @@ Dwie rzeczy, których przełączenie targetu **nie** załatwia:
 3. `dbt build --target prod` - seed, snapshot, modele i testy w jednym przebiegu.
 4. Po awarii: `dbt retry --target prod`.
 
+## CI/CD
+
+GitHub Actions: lint SQL i `dbt parse` na każdym PR (bez poświadczeń), Slim CI (`dbt build --select state:modified+ --defer`) w datasecie `ci_pr_<nr>`, deploy na prod po merge'u z bramką `dbt source freshness`. Logowanie do GCP przez Workload Identity Federation — bez kluczy JSON. Joby wymagające GCP pomijają się, dopóki nie ustawisz zmiennych w GitHubie.
+
+Architektura, konfiguracja GCP i GitHuba krok po kroku, pułapki i rekomendacje: [docs/ci-cd.md](docs/ci-cd.md).
+
 ## Setup
 
 Wymagane narzędzia: [gcloud CLI](https://cloud.google.com/sdk/docs/install) (krok 1) i [uv](https://docs.astral.sh/uv/) (`brew install uv`, krok 2). Pythona nie trzeba instalować osobno - uv pobierze wersję z `.python-version`.
